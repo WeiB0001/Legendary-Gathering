@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>傳說採集時刻表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: sticky control deck (ET clock + filters) over a vertical 24h ET timeline; each ET hour is a band of node rows. */
+:root {
+  --bg: #f3f1ec;
+  --panel: #fbfaf7;
+  --line: #ddd8cc;
+  --fg: #23211c;
+  --muted: #706a5c;
+  --gold: #9a6b12;
+  --gold-soft: #f2e5c4;
+  --min: #a24a2a;      /* 採礦 — 赤土 */
+  --min-soft: #f5dfd5;
+  --btn: #3d7a3a;      /* 園藝 — 葉綠 */
+  --btn-soft: #dcebd6;
+  --live: #1f7a5c;
+  --live-soft: #d5ede4;
+  --warn: #8a5a00;
+  --font-display: "Noto Serif TC", "Songti TC", serif;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15171c; --panel: #1d2027; --line: #2f333d; --fg: #e9e5da; --muted: #9a958a;
+  --gold: #e0b45a; --gold-soft: #3a3020; --min: #e48a66; --min-soft: #3d261e;
+  --btn: #8fc882; --btn-soft: #223321; --live: #5fd1a6; --live-soft: #173a30; --warn: #e2b34a;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #15171c; --panel: #1d2027; --line: #2f333d; --fg: #e9e5da; --muted: #9a958a;
+  --gold: #e0b45a; --gold-soft: #3a3020; --min: #e48a66; --min-soft: #3d261e;
+  --btn: #8fc882; --btn-soft: #223321; --live: #5fd1a6; --live-soft: #173a30; --warn: #e2b34a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+.wrap { max-width: 1100px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* deck */
+.deck { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
+.deck .wrap { padding-block: 12px; display: grid; gap: 10px; }
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+h1 { margin: 0; font: 900 1.45rem/1.2 var(--font-display); letter-spacing: .04em; text-wrap: balance; }
+h1 small { display: block; font: 500 .72rem var(--font-body); color: var(--muted); letter-spacing: .12em; }
+.clocks { display: flex; gap: 18px; margin-left: auto; align-items: baseline; }
+.clock { display: grid; }
+.clock span { font-size: .68rem; letter-spacing: .14em; color: var(--muted); }
+.clock b { font: 500 1.6rem/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.clock.et b { color: var(--gold); }
+.clock.lt b { font-size: 1.05rem; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.group > label.cap { font-size: .7rem; color: var(--muted); letter-spacing: .1em; margin-right: 2px; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 3px 11px; cursor: pointer; font-size: .85rem; white-space: nowrap; }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.chip.m[aria-pressed="true"] { background: var(--min); border-color: var(--min); color: #fff; }
+.chip.b[aria-pressed="true"] { background: var(--btn); border-color: var(--btn); color: #fff; }
+select, input[type="search"] { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 4px 8px; font-size: .85rem; }
+input[type="search"] { width: 11em; }
+.status { font-size: .78rem; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.status button { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 1px 8px; cursor: pointer; font-size: .78rem; }
+
+/* timeline */
+main { padding-block: 18px 60px; }
+.band { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 0 16px; padding-block: 14px; border-top: 1px solid var(--line); }
+.band:first-child { border-top: 0; }
+.hour { align-self: start; }
+.hour b { display: block; white-space: nowrap; font: 500 1.3rem/1.1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.hour .when { display: block; font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hour .pill { display: inline-block; margin-top: 6px; font-size: .72rem; padding: 1px 8px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font-variant-numeric: tabular-nums; }
+.band.live .hour .pill { background: var(--live-soft); color: var(--live); font-weight: 700; }
+.band.live .hour b { color: var(--live); }
+.rows { display: grid; gap: 8px; min-width: 0; }
+.node { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--btn); border-radius: 8px; padding: 10px 14px; }
+.node.MIN { border-left-color: var(--min); }
+.band.live .node { box-shadow: 0 0 0 1px var(--live-soft); }
+.items { display: flex; flex-wrap: wrap; gap: 6px 14px; min-width: 0; }
+.item { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.item img { width: 32px; height: 32px; border-radius: 6px; flex: none; background: var(--line); }
+.item .nm { font-weight: 700; cursor: copy; border-bottom: 1px dashed transparent; }
+.item .nm:hover { border-bottom-color: var(--muted); }
+.item .na { font-size: .7rem; color: var(--warn); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+.meta { grid-column: 1; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .82rem; color: var(--muted); align-items: center; }
+.tag { font-size: .7rem; padding: 0 6px; border-radius: 4px; font-weight: 700; letter-spacing: .05em; }
+.tag.MIN { background: var(--min-soft); color: var(--min); }
+.tag.BTN { background: var(--btn-soft); color: var(--btn); }
+.tag.leg { background: var(--gold-soft); color: var(--gold); }
+.tag.uns { border: 1px solid var(--line); }
+.ae { color: var(--fg); }
+.ae::before { content: "◆ "; color: var(--gold); font-size: .7em; vertical-align: 1px; }
+.coord { font-family: var(--font-mono); font-size: .78rem; }
+.prices { grid-column: 2; grid-row: 1 / span 2; display: grid; gap: 4px; align-content: center; justify-items: end; min-width: 140px; }
+.price { display: grid; grid-template-columns: auto auto; gap: 0 8px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.price .lab { font-size: .7rem; color: var(--muted); max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.price .v { font: 500 1rem var(--font-mono); text-align: right; }
+.price .v small { font: .7rem var(--font-body); color: var(--muted); }
+.price .sub { grid-column: 2; font-size: .7rem; color: var(--muted); text-align: right; }
+.planner { padding-block: 14px 0; }
+.planner > details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.planner > details > summary { cursor: pointer; font: 700 1rem var(--font-display); letter-spacing: .05em; }
+.plan-set { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: .82rem; color: var(--muted); }
+.plan-set label { display: flex; gap: 6px; align-items: center; }
+.plan-set input { width: 5.5em; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 2px 6px; font-variant-numeric: tabular-nums; }
+.plan-hint { margin: 8px 0 0; font-size: .75rem; color: var(--muted); }
+.route { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: .85rem; }
+.route li { display: grid; grid-template-columns: 5.4em 4.4em minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 4px 0; border-top: 1px dashed var(--line); }
+.route li.weak { color: var(--muted); }
+.route .why { display: block; font-size: .72rem; color: var(--muted); }
+.route .t, .route .gp-pill { white-space: nowrap; }
+.route .gp-pill { margin-top: 0; }
+.route-more summary { cursor: pointer; font-size: .8rem; color: var(--muted); margin-top: 6px; }
+.route .t { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.route .mv { font-size: .75rem; color: var(--muted); text-align: right; }
+.route .mv.tp { color: var(--min); }
+.band-route + .band-route { margin-top: 6px; }
+.band-route li:first-child { border-top: 1px solid var(--line); }
+.tag.route-no { background: var(--fg); color: var(--bg); }
+.route-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; font-size: .82rem; }
+.route-ctl .route-state { color: var(--muted); margin-right: auto; }
+.route-ctl button { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 3px 12px; cursor: pointer; }
+.route-ctl button.primary { background: var(--gold); border-color: var(--gold); color: var(--bg); font-weight: 700; }
+.band-route.past { opacity: .45; }
+.band-route.cur { background: var(--live-soft); border-radius: 6px; }
+.route li.done > span:nth-child(3) { text-decoration: line-through; color: var(--muted); }
+.route input.done { margin: 0 6px 0 0; vertical-align: -2px; }
+.route-sum { margin: 8px 0 0; font-size: .82rem; }
+.gp-pill { display: inline-block; margin-top: 6px; font-size: .72rem; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.gp-pill.use { background: var(--gold); border-color: var(--gold); color: var(--bg); font-weight: 700; }
+.node.target { outline: 2px solid var(--gold); outline-offset: -1px; }
+.star { border: 0; background: none; padding: 0 2px; cursor: pointer; font-size: 1rem; line-height: 1; color: var(--line); }
+.star[aria-pressed="true"] { color: var(--gold); }
+.item.marked .nm { color: var(--gold); }
+.tag.col { background: var(--btn-soft); color: var(--fg); }
+.gp-note { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--gold-soft); color: var(--fg); font-size: .85rem; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.gp-note b { color: var(--gold); letter-spacing: .05em; }
+.gp-note.keep { background: transparent; border: 1px dashed var(--line); }
+.gp-note.keep b { color: var(--muted); }
+.price .sub.rank { color: var(--gold); font-weight: 700; }
+.empty { color: var(--muted); padding: 40px 0; text-align: center; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 6px 14px; border-radius: 8px; font-size: .85rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+footer { font-size: .75rem; color: var(--muted); padding-block: 0 40px; }
+footer p { max-width: 70ch; margin: .4em 0; }
+@media (max-width: 720px) {
+  .route li { grid-template-columns: 5.4em minmax(0, 1fr); }
+  .route li > :nth-child(n+2) { grid-column: 2; text-align: left; }
+  .deck { position: static; }
+  .band { grid-template-columns: minmax(0, 1fr); }
+  .hour { position: static; display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; }
+  .hour .pill { margin-top: 0; }
+  .node { grid-template-columns: minmax(0, 1fr); }
+  .prices { grid-column: 1; grid-row: auto; justify-items: start; }
+  .price { grid-template-columns: auto auto; }
+  .price .lab, .price .v, .price .sub { text-align: left; }
+  .clocks { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<header class="deck">
+  <div class="wrap">
+    <div class="top">
+      <h1><small>FFXIV · 採礦工 / 園藝工</small>傳說採集時刻表</h1>
+      <div class="clocks">
+        <div class="clock et"><span>艾歐澤亞時間 ET</span><b id="et">--:--</b></div>
+        <div class="clock lt"><span>本地時間</span><b id="lt">--:--:--</b></div>
+      </div>
+    </div>
+    <div class="filters">
+      <div class="group" id="f-job"><label class="cap">職業</label>
+        <button class="chip" data-v="ALL" aria-pressed="true">全部</button>
+        <button class="chip m" data-v="MIN" aria-pressed="false">採礦</button>
+        <button class="chip b" data-v="BTN" aria-pressed="false">園藝</button>
+      </div>
+      <div class="group" id="f-exp"><label class="cap">版本</label></div>
+      <div class="group" id="f-kind"><label class="cap">類型</label>
+        <button class="chip" type="button" data-v="leg" title="需要傳承錄的傳說採集點">傳說</button>
+        <button class="chip" type="button" data-v="uns" title="未知採集點，只顯示賣出划算度前 20 名的素材（標記的素材一律顯示）">未知 前20</button>
+        <button class="chip" type="button" data-v="col" title="收藏用素材，顯示最高可換的工票">收藏品</button>
+      </div>
+      <div class="group">
+        <label class="cap" for="f-q">搜尋</label>
+        <input type="search" id="f-q" placeholder="素材／地區／傳送點">
+      </div>
+      <div class="group">
+        <label class="cap" for="f-srv">市場</label>
+        <select id="f-srv"></select>
+      </div>
+      <div class="group">
+        <label class="cap" for="f-sort">排序</label>
+        <select id="f-sort">
+          <option value="lv">同時段依等級</option>
+          <option value="price">同時段依價格</option>
+          <option value="rank">同時段依划算度排名</option>
+        </select>
+      </div>
+    </div>
+    <div class="status"><span id="st-count"></span><span id="st-price">正在讀取市場價格…</span><button id="refresh" type="button">重新整理價格</button></div>
+  </div>
+</header>
+<main class="wrap">
+  <section class="planner">
+    <details id="plan" open>
+      <summary>GP 規劃與路線</summary>
+      <div class="plan-set">
+        <label>目前 GP <input type="number" id="gp-now" min="0" step="10" inputmode="numeric"></label>
+        <label>GP 上限 <input type="number" id="gp-max" min="0" step="10" inputmode="numeric"></label>
+        <label>每次用量 <input type="number" id="gp-cost" min="0" step="10" inputmode="numeric"></label>
+        <label>每時段回復 <input type="number" id="gp-regen" min="0" step="10" inputmode="numeric"></label>
+        <label>每 2 ET 小時採集點 <input type="number" id="gp-stops" min="1" max="8" step="1" inputmode="numeric"></label>
+        <label>日銷門檻 <input type="number" id="gp-velMin" min="0" step="0.5" inputmode="decimal"></label>
+      </div>
+      <p class="plan-hint">按「開始這條路線」後路線就固定下來，照名單往下走，可勾選已完成的點。路線以傳送費最低為主：日銷達門檻的素材挑划算度最高的點，銷量不好的名額改挑傳送費最省的點，再排出最省錢的走訪順序。GP 依賣出划算度留給整條路線上最值得的點。標記 ★ 的素材一律視為重要。</p>
+      <div id="route"></div>
+    </details>
+  </section>
+  <div id="list"></div>
+</main>
+<footer class="wrap">
+  <p>價格：最近 10 筆成交的平均單價（NQ／HQ 都算）。划算度排名沿用「繁中服 賣出划算度排行」的算法：日均銷量 × 平均成交價 × 行情係數（最低掛單 ÷ 平均成交價，限制在 0.25–2），在本頁所有素材中排名。「未知」只顯示未知採集點中賣出划算度前 20 名的素材（標記的素材一律顯示），市場資料讀到後才會出現。收藏品不能上市場，改標示最高評價時一個可換的工票數。已排除停止營運的「拉姆」伺服器。只列出限時採集點獨有的素材。</p>
+  <p>路線：每個時段排「每 2 ET 小時採集點」個點（只隔 1 ET 小時的時段減半）。日銷達門檻（或標記 ★）的素材依賣出划算度挑最高的點；剩下的名額不看划算度，改挑加入後整條路線傳送費增加最少的點。最後窮舉走訪順序，取傳送費最低的走法。傳送費是估計值：同地圖騎乘 0、同地區約 200、同大陸約 400、跨大陸約 700 gil，實際以遊戲為準。GP 規劃：GP 依時間回復（每時段回復量按站與站之間的時間換算），在整條路線上挑出划算度總和最高的用 GP 採集點。連續兩個時段都要用 GP 時，前一段把用 GP 的點排在最前面、後一段排在最後面，讓中間有最長的回復時間。按「開始這條路線」後路線會固定，不再隨時間重排。把最常傳送的地點設為最愛傳送點，傳送費可以打對折。</p>
+  <p>點素材名稱可複製。ET 1 小時 = 現實 2 分 55 秒。採集點與傳送點資料來自 FFXIV Teamcraft 與台服解包；價格來自 Universalis。只列出繁中服已開放的素材。</p>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script id="data" type="application/json">{"nodes":[{"id":341,"lv":55,"exp":"HW","job":"BTN","kind":"uns","map":214,"reg":498,"items":[12899,12943],"spawns":[0,12],"dur":120,"region":"德拉瓦尼亞雲海","zone":"豎骨島","x":25.95,"y":8.83,"ae":"天極白堊宮","aeShard":false,"aex":11.02,"aey":28.81},{"id":292,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":213,"reg":498,"items":[5392],"spawns":[0,12],"dur":120,"region":"德拉瓦尼亞河谷地","zone":"薩雷安治學區","x":7.7,"y":28.1,"ae":"序言門（德拉瓦尼亞河谷地西方面）","aeShard":true,"aex":11.94,"aey":12.83},{"id":320,"lv":60,"exp":"HW","job":"MIN","kind":"uns","map":216,"reg":497,"items":[12538],"spawns":[0,12],"dur":120,"region":"魔大陸阿濟茲拉","zone":"貝塔管區","x":23.76,"y":5.94,"ae":"螺旋港","aeShard":false,"aex":8.34,"aey":10.71},{"id":321,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":211,"reg":25,"items":[5226,5163],"spawns":[0,12],"dur":120,"region":"庫爾札斯西部高地","zone":"交匯河","x":37.34,"y":17.63,"ae":"隼巢","aeShard":false,"aex":31.9,"aey":36.54},{"id":348,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":215,"reg":497,"items":[12902],"spawns":[0,12],"dur":120,"region":"阿巴拉提亞雲海","zone":"試煉群島","x":22.26,"y":6.37,"ae":"尊杜部落","aeShard":false,"aex":10.52,"aey":14.43},{"id":769,"lv":60,"exp":"HW","job":"BTN","kind":"col","map":212,"reg":498,"items":[32995,32996],"spawns":[0,12],"dur":120,"region":"德拉瓦尼亞山麓地","zone":"阿瓦隆尼亞古陸","x":16.15,"y":36.49,"ae":"不潔三塔","aeShard":false,"aex":16.63,"aey":23.24},{"id":498,"lv":65,"exp":"SB","job":"MIN","kind":"uns","map":371,"reg":2401,"items":[19970],"spawns":[0,12],"dur":120,"region":"紅玉海","zone":"奧薩德東岸","x":14.91,"y":5.04,"ae":"自凝島","aeShard":false,"aex":23.34,"aey":9.7},{"id":502,"lv":70,"exp":"SB","job":"MIN","kind":"uns","map":369,"reg":2400,"items":[19907],"spawns":[0,12],"dur":120,"region":"基拉巴尼亞湖區","zone":"鹽湖","x":21.2,"y":28.95,"ae":"阿拉米格人居住區","aeShard":false,"aex":33.89,"aey":34.45},{"id":528,"lv":70,"exp":"SB","job":"BTN","kind":"leg","map":372,"reg":2401,"items":[19991,21086],"spawns":[0,12],"dur":120,"region":"太陽神草原","zone":"昂薩哈凱爾","x":19.72,"y":9.79,"ae":"晨曦王座","aeShard":false,"aex":23.26,"aey":22.17},{"id":555,"lv":70,"exp":"SB","job":"MIN","kind":"leg","map":367,"reg":2400,"items":[24240],"spawns":[0,12],"dur":120,"region":"基拉巴尼亞邊區","zone":"無垢乾谷","x":27.37,"y":30.23,"ae":"對等石","aeShard":false,"aex":29.99,"aey":26.35},{"id":772,"lv":70,"exp":"SB","job":"BTN","kind":"col","map":354,"reg":2401,"items":[33000,33001],"spawns":[0,12],"dur":120,"region":"延夏","zone":"多瑪","x":18.7,"y":14.36,"ae":"烈士庵","aeShard":false,"aex":26.42,"aey":13.27},{"id":628,"lv":75,"exp":"ShB","job":"BTN","kind":"uns","map":494,"reg":2950,"items":[27833],"spawns":[0,12],"dur":120,"region":"伊爾美格","zone":"群樹館","x":24.87,"y":36.83,"ae":"群花館","aeShard":false,"aex":14.43,"aey":31.56},{"id":606,"lv":80,"exp":"ShB","job":"MIN","kind":"uns","map":493,"reg":2950,"items":[27729],"spawns":[0,12],"dur":120,"region":"安穆・艾蘭","zone":"水站","x":19.99,"y":28.98,"ae":"上路客店","aeShard":false,"aex":29.48,"aey":27.43},{"id":608,"lv":80,"exp":"ShB","job":"MIN","kind":"uns","map":496,"reg":2950,"items":[27731],"spawns":[0,12],"dur":120,"region":"黑風海","zone":"卡利班深海峽","x":15.98,"y":21.64,"ae":"馬克連薩斯廣場","aeShard":false,"aex":18.55,"aey":25.56},{"id":631,"lv":80,"exp":"ShB","job":"BTN","kind":"uns","map":495,"reg":2950,"items":[27828],"spawns":[0,12],"dur":120,"region":"拉凱提卡大森林","zone":"射手露宿地","x":34.74,"y":21.56,"ae":"法諾村","aeShard":false,"aex":29.16,"aey":17.41},{"id":684,"lv":80,"exp":"ShB","job":"BTN","kind":"leg","map":492,"reg":2950,"items":[30485,29978],"spawns":[0,12],"dur":120,"region":"珂露西亞島","zone":"白油瀑布","x":28.44,"y":21.18,"ae":"滯潮村","aeShard":false,"aex":34.87,"aey":27.42},{"id":761,"lv":80,"exp":"ShB","job":"BTN","kind":"leg","map":491,"reg":2950,"items":[32954],"spawns":[0,12],"dur":120,"region":"雷克蘭德","zone":"責罰監獄","x":5.24,"y":26.56,"ae":"奧斯塔爾嚴命城","aeShard":false,"aex":6.78,"aey":16.76},{"id":777,"lv":80,"exp":"ShB","job":"BTN","kind":"col","map":368,"reg":2400,"items":[33009],"spawns":[0,12],"dur":120,"region":"基拉巴尼亞山區","zone":"石楠瀑布","x":30.6,"y":6.85,"ae":"阿拉加納","aeShard":false,"aex":23.68,"aey":6.42},{"id":829,"lv":85,"exp":"EW","job":"MIN","kind":"col","map":695,"reg":3702,"items":[36293,36295],"spawns":[0,12],"dur":120,"region":"迷津","zone":"心之風","x":32.51,"y":21.24,"ae":"公堂保管院","aeShard":false,"aex":30.29,"aey":11.89},{"id":627,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":696,"reg":3703,"items":[37819,39906],"spawns":[0,12],"dur":120,"region":"薩維奈島","zone":"眾僧林園","x":29.12,"y":26.87,"ae":"新港","aeShard":false,"aex":25.37,"aey":34.23},{"id":834,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":697,"reg":3703,"items":[36215,36216,37279,37694],"spawns":[0,12],"dur":120,"region":"加雷馬","zone":"朱圖爾娜七號水上鑽井平臺","x":32.17,"y":34.88,"ae":"第三站","aeShard":false,"aex":31.97,"aey":18.01},{"id":853,"lv":90,"exp":"EW","job":"BTN","kind":"col","map":700,"reg":3705,"items":[36306,36308],"spawns":[0,12],"dur":120,"region":"厄爾庇斯","zone":"翠牙園","x":24.98,"y":5.64,"ae":"創作者之家","aeShard":false,"aex":10.68,"aey":17.17},{"id":936,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":698,"reg":3704,"items":[39710],"spawns":[0,12],"dur":120,"region":"嘆息海","zone":"愛情威的花園","x":25.88,"y":20.42,"ae":"最佳威兔洞","aeShard":false,"aex":21.5,"aey":11.54},{"id":1026,"lv":95,"exp":"DT","job":"BTN","kind":"col","map":857,"reg":4500,"items":[43926],"spawns":[0,12],"dur":120,"region":"奧闊帕恰山","zone":"拉托托花田","x":5.89,"y":23.78,"ae":"瓦丘恩佩洛","aeShard":false,"aex":28.26,"aey":13.35},{"id":1025,"lv":100,"exp":"DT","job":"MIN","kind":"col","map":862,"reg":4502,"items":[43923],"spawns":[0,12],"dur":120,"region":"憶想之地","zone":"勇武鬥技場","x":25,"y":17.34,"ae":"風之節點","aeShard":false,"aex":16.23,"aey":13.76},{"id":1033,"lv":100,"exp":"DT","job":"BTN","kind":"leg","map":858,"reg":4500,"items":[44137],"spawns":[0,12],"dur":120,"region":"克扎瑪烏卡濕地","zone":"釉燒河岸","x":7.43,"y":33.06,"ae":"土陶郡","aeShard":false,"aex":11.72,"aey":27.93},{"id":1191,"lv":100,"exp":"DT","job":"BTN","kind":"leg","map":859,"reg":4500,"items":[45968],"spawns":[0,12],"dur":120,"region":"亞克特爾樹海","zone":"白燼古戰場","x":35.77,"y":22.34,"ae":"瑪穆克","aeShard":false,"aex":36.11,"aey":32.07},{"id":216,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":5,"reg":23,"items":[5350,10098],"spawns":[1],"dur":180,"region":"黑衣森林東部林區","zone":"九藤","x":22,"y":26.47,"ae":"霍桑山寨","aeShard":false,"aex":17.57,"aey":27.34},{"id":222,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":53,"reg":25,"items":[10095],"spawns":[1],"dur":180,"region":"庫爾札斯中央高地","zone":"巨龍首","x":27.59,"y":19.94,"ae":"巨龍首營地","aeShard":false,"aex":26.07,"aey":16.72},{"id":250,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":17,"reg":22,"items":[9519],"spawns":[1],"dur":180,"region":"東拉諾西亞","zone":"紅螳螂瀑布","x":17.55,"y":27.52,"ae":"葡萄酒港","aeShard":false,"aex":21.01,"aey":21.57},{"id":233,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":4,"reg":23,"items":[7591,10098],"spawns":[2],"dur":180,"region":"黑衣森林中央林區","zone":"酸模避風港","x":15.91,"y":20.49,"ae":"彎枝牧場","aeShard":false,"aex":21.89,"aey":22.32},{"id":242,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":6,"reg":23,"items":[7611],"spawns":[2],"dur":180,"region":"黑衣森林南部林區","zone":"高徑","x":17.49,"y":23.07,"ae":"恬靜路營地","aeShard":false,"aex":16.94,"aey":28.49},{"id":246,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":22,"reg":24,"items":[8030],"spawns":[2],"dur":180,"region":"東薩納蘭","zone":"新植林","x":26.86,"y":18.56,"ae":"枯骨營地","aeShard":false,"aex":13.89,"aey":24.35},{"id":340,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":212,"reg":498,"items":[12896,13765],"spawns":[2,14],"dur":120,"region":"德拉瓦尼亞山麓地","zone":"陸行鳥之森","x":26.62,"y":13.32,"ae":"尾羽部落","aeShard":false,"aex":33.47,"aey":23.19},{"id":289,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":211,"reg":25,"items":[16724],"spawns":[2,14],"dur":120,"region":"庫爾札斯西部高地","zone":"雙子池","x":10.26,"y":9.48,"ae":"隼巢","aeShard":false,"aex":31.9,"aey":36.54},{"id":308,"lv":60,"exp":"HW","job":"MIN","kind":"col","map":215,"reg":497,"items":[32973,32974],"spawns":[2,14],"dur":120,"region":"阿巴拉提亞雲海","zone":"藍天窗","x":20.62,"y":11.59,"ae":"尊杜部落","aeShard":false,"aex":10.52,"aey":14.43},{"id":323,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":214,"reg":498,"items":[12536,14148],"spawns":[2,14],"dur":120,"region":"德拉瓦尼亞雲海","zone":"綠茵島","x":9.63,"y":36.93,"ae":"天極白堊宮","aeShard":false,"aex":11.02,"aey":28.81},{"id":350,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":216,"reg":497,"items":[12587],"spawns":[2,14],"dur":120,"region":"魔大陸阿濟茲拉","zone":"貝塔管區","x":23.04,"y":9.15,"ae":"螺旋港","aeShard":false,"aex":8.34,"aey":10.71},{"id":497,"lv":60,"exp":"HW","job":"MIN","kind":"uns","map":367,"reg":2400,"items":[19968],"spawns":[2,14],"dur":120,"region":"基拉巴尼亞邊區","zone":"條紋丘","x":25.25,"y":8.28,"ae":"帝國東方堡","aeShard":false,"aex":8.74,"aey":11.26},{"id":770,"lv":65,"exp":"SB","job":"BTN","kind":"col","map":371,"reg":2401,"items":[32997,32999],"spawns":[2,14],"dur":120,"region":"紅玉海","zone":"漁村","x":5.95,"y":15.77,"ae":"自凝島","aeShard":false,"aex":23.34,"aey":9.7},{"id":523,"lv":70,"exp":"SB","job":"BTN","kind":"uns","map":372,"reg":2401,"items":[19852],"spawns":[2,14],"dur":120,"region":"太陽神草原","zone":"昂薩哈凱爾","x":27.17,"y":16.3,"ae":"晨曦王座","aeShard":false,"aex":23.26,"aey":22.17},{"id":538,"lv":70,"exp":"SB","job":"BTN","kind":"leg","map":368,"reg":2400,"items":[22420],"spawns":[2,14],"dur":120,"region":"基拉巴尼亞山區","zone":"約恩山","x":24.74,"y":36.1,"ae":"阿拉基利","aeShard":false,"aex":15.96,"aey":36.39},{"id":558,"lv":70,"exp":"SB","job":"BTN","kind":"leg","map":354,"reg":2401,"items":[24243],"spawns":[2,14],"dur":120,"region":"延夏","zone":"無二江流域","x":28.35,"y":35.36,"ae":"茨菰村","aeShard":false,"aex":30.16,"aey":19.49},{"id":603,"lv":70,"exp":"SB","job":"MIN","kind":"uns","map":492,"reg":2950,"items":[27726],"spawns":[2,14],"dur":120,"region":"珂露西亞島","zone":"總督田地","x":33.97,"y":23.22,"ae":"滯潮村","aeShard":false,"aex":34.87,"aey":27.42},{"id":633,"lv":80,"exp":"ShB","job":"BTN","kind":"leg","map":495,"reg":2950,"items":[27688,28716],"spawns":[2,14],"dur":120,"region":"拉凱提卡大森林","zone":"繆櫟的鄉愁","x":24.74,"y":36.93,"ae":"蛇行枝","aeShard":false,"aex":19.3,"aey":27.27},{"id":681,"lv":80,"exp":"ShB","job":"MIN","kind":"leg","map":491,"reg":2950,"items":[30486,29968],"spawns":[2,14],"dur":120,"region":"雷克蘭德","zone":"賢島","x":4.74,"y":34,"ae":"奧斯塔爾嚴命城","aeShard":false,"aex":6.78,"aey":16.76},{"id":759,"lv":80,"exp":"ShB","job":"MIN","kind":"leg","map":494,"reg":2950,"items":[32952],"spawns":[2,14],"dur":120,"region":"伊爾美格","zone":"孚布特堡","x":35.72,"y":8.71,"ae":"雲村","aeShard":false,"aex":29.11,"aey":7.48},{"id":766,"lv":80,"exp":"ShB","job":"MIN","kind":"col","map":496,"reg":2950,"items":[32984,32986],"spawns":[2,14],"dur":120,"region":"黑風海","zone":"鰭人潮池","x":32.73,"y":20.57,"ae":"鰭人潮池","aeShard":false,"aex":32.74,"aey":17.27},{"id":775,"lv":80,"exp":"ShB","job":"BTN","kind":"col","map":493,"reg":2950,"items":[33005,33007],"spawns":[2,14],"dur":120,"region":"安穆・艾蘭","zone":"中琥珀丘","x":18.59,"y":20.52,"ae":"絡尾部落","aeShard":false,"aex":11.26,"aey":16.98},{"id":851,"lv":85,"exp":"EW","job":"BTN","kind":"col","map":696,"reg":3703,"items":[36303,36305],"spawns":[2,14],"dur":120,"region":"薩維奈島","zone":"恆娑牧場遺址","x":14.38,"y":14.53,"ae":"代米爾遺烈鄉","aeShard":false,"aex":10.94,"aey":22.35},{"id":463,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":700,"reg":3705,"items":[37818,39234],"spawns":[2,14],"dur":120,"region":"厄爾庇斯","zone":"十二奇園","x":9.82,"y":29.85,"ae":"十二奇園","aeShard":false,"aex":8.6,"aey":32.47},{"id":831,"lv":90,"exp":"EW","job":"MIN","kind":"col","map":697,"reg":3703,"items":[36296,36298],"spawns":[2,14],"dur":120,"region":"加雷馬","zone":"平原倉庫","x":12.79,"y":21.9,"ae":"碎璃營地","aeShard":false,"aex":13.33,"aey":31.27},{"id":835,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":698,"reg":3704,"items":[36215,36167],"spawns":[2,14],"dur":120,"region":"嘆息海","zone":"希德尼亞丘陵","x":9.52,"y":23.35,"ae":"淚灣","aeShard":false,"aex":9.8,"aey":34.74},{"id":937,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":695,"reg":3702,"items":[39705,41413],"spawns":[2,14],"dur":120,"region":"迷津","zone":"內環","x":19.06,"y":35.93,"ae":"無路總部","aeShard":false,"aex":6.95,"aey":27.44},{"id":1027,"lv":100,"exp":"DT","job":"BTN","kind":"col","map":859,"reg":4500,"items":[43927,43928],"spawns":[2,14],"dur":120,"region":"亞克特爾樹海","zone":"加提卡海心","x":36.86,"y":34.83,"ae":"瑪穆克","aeShard":false,"aex":36.11,"aey":32.07},{"id":1034,"lv":100,"exp":"DT","job":"BTN","kind":"leg","map":860,"reg":4501,"items":[44140],"spawns":[2,14],"dur":120,"region":"夏勞尼荒野","zone":"艾休凱亞尼荒原","x":10.86,"y":31.12,"ae":"謝申內青磷泉","aeShard":false,"aex":15.53,"aey":19.34},{"id":1190,"lv":100,"exp":"DT","job":"MIN","kind":"leg","map":861,"reg":4501,"items":[45973],"spawns":[2,14],"dur":120,"region":"遺產之地","zone":"永護塔周邊","x":14.02,"y":16.84,"ae":"邊郊鎮","aeShard":false,"aex":16.76,"aey":10.04},{"id":236,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":24,"reg":24,"items":[5150,5149,10095],"spawns":[3],"dur":180,"region":"北薩納蘭","zone":"勞班緩衝地","x":17.33,"y":20.17,"ae":"青磷精煉所","aeShard":false,"aex":21.08,"aey":20.88},{"id":237,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":21,"reg":24,"items":[5147,5148,10095],"spawns":[4],"dur":180,"region":"中薩納蘭","zone":"黑塵","x":25.24,"y":15.9,"ae":"黑塵驛站","aeShard":false,"aex":21.17,"aey":18.23},{"id":247,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":23,"reg":24,"items":[10095],"spawns":[4],"dur":180,"region":"南薩納蘭","zone":"穢水","x":17.17,"y":10.59,"ae":"小阿拉米格","aeShard":false,"aex":18.43,"aey":13.11},{"id":306,"lv":55,"exp":"HW","job":"MIN","kind":"col","map":212,"reg":498,"items":[32970,32971,32972],"spawns":[4,16],"dur":120,"region":"德拉瓦尼亞山麓地","zone":"荒煙野地","x":30.71,"y":32.19,"ae":"尾羽部落","aeShard":false,"aex":33.47,"aey":23.19},{"id":293,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":216,"reg":497,"items":[16721],"spawns":[4,16],"dur":120,"region":"魔大陸阿濟茲拉","zone":"德爾塔管區","x":7.99,"y":30.23,"ae":"螺旋港","aeShard":false,"aex":8.34,"aey":10.71},{"id":324,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":215,"reg":497,"items":[12540],"spawns":[4,16],"dur":120,"region":"阿巴拉提亞雲海","zone":"沃仙曦染","x":36.39,"y":37.71,"ae":"雲頂營地","aeShard":false,"aex":10.41,"aey":33.4},{"id":343,"lv":60,"exp":"HW","job":"BTN","kind":"uns","map":213,"reg":498,"items":[12897,12898],"spawns":[4,16],"dur":120,"region":"德拉瓦尼亞河谷地","zone":"薩雷安睿哲區","x":16.07,"y":37.16,"ae":"序言門（德拉瓦尼亞河谷地西方面）","aeShard":true,"aex":11.94,"aey":12.83},{"id":347,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":214,"reg":498,"items":[12634],"spawns":[4,16],"dur":120,"region":"德拉瓦尼亞雲海","zone":"綠茵島","x":17.64,"y":36.98,"ae":"莫古利之家","aeShard":false,"aex":27.63,"aey":34.4},{"id":771,"lv":65,"exp":"SB","job":"BTN","kind":"col","map":371,"reg":2401,"items":[32998],"spawns":[4,16],"dur":120,"region":"紅玉海","zone":"沖之岩","x":33.11,"y":9.22,"ae":"碧玉水","aeShard":false,"aex":28.69,"aey":16.04},{"id":501,"lv":70,"exp":"SB","job":"MIN","kind":"uns","map":372,"reg":2401,"items":[19971],"spawns":[4,16],"dur":120,"region":"太陽神草原","zone":"擋風巨岩","x":4.93,"y":29.53,"ae":"朵洛衣樓","aeShard":false,"aex":6.54,"aey":23.98},{"id":504,"lv":70,"exp":"SB","job":"MIN","kind":"leg","map":354,"reg":2401,"items":[19958],"spawns":[4,16],"dur":120,"region":"延夏","zone":"多瑪","x":20.46,"y":9.7,"ae":"烈士庵","aeShard":false,"aex":26.42,"aey":13.27},{"id":526,"lv":70,"exp":"SB","job":"BTN","kind":"uns","map":369,"reg":2400,"items":[19857,17948],"spawns":[4,16],"dur":120,"region":"基拉巴尼亞湖區","zone":"阿巴拉提亞龍頭","x":6.85,"y":8.97,"ae":"天營門","aeShard":false,"aex":8.44,"aey":20.97},{"id":537,"lv":70,"exp":"SB","job":"BTN","kind":"leg","map":367,"reg":2400,"items":[22419,23180],"spawns":[4,16],"dur":120,"region":"基拉巴尼亞邊區","zone":"尖槍瀑布","x":14.88,"y":21.23,"ae":"帝國東方堡","aeShard":false,"aex":8.74,"aey":11.26},{"id":557,"lv":70,"exp":"SB","job":"BTN","kind":"leg","map":368,"reg":2400,"items":[24242],"spawns":[4,16],"dur":120,"region":"基拉巴尼亞山區","zone":"紅鏽岩山","x":33.36,"y":10.63,"ae":"阿拉加納","aeShard":false,"aex":23.68,"aey":6.42},{"id":330,"lv":75,"exp":"ShB","job":"MIN","kind":"col","map":491,"reg":2950,"items":[32980,32982],"spawns":[4,16],"dur":120,"region":"雷克蘭德","zone":"束帶路","x":31.25,"y":24.15,"ae":"喬布要塞","aeShard":false,"aex":36.59,"aey":21.18},{"id":605,"lv":75,"exp":"ShB","job":"MIN","kind":"uns","map":495,"reg":2950,"items":[27728],"spawns":[4,16],"dur":120,"region":"拉凱提卡大森林","zone":"書著者樹洞","x":19.76,"y":20.54,"ae":"蛇行枝","aeShard":false,"aex":19.3,"aey":27.27},{"id":609,"lv":80,"exp":"ShB","job":"MIN","kind":"leg","map":494,"reg":2950,"items":[27705,28717],"spawns":[4,16],"dur":120,"region":"伊爾美格","zone":"聖法斯里克天庭","x":30.59,"y":20.61,"ae":"雲村","aeShard":false,"aex":29.11,"aey":7.48},{"id":714,"lv":80,"exp":"ShB","job":"BTN","kind":"leg","map":493,"reg":2950,"items":[29974],"spawns":[4,16],"dur":120,"region":"安穆・艾蘭","zone":"拿巴示斷絕","x":32.26,"y":33.55,"ae":"上路客店","aeShard":false,"aex":29.48,"aey":27.43},{"id":758,"lv":80,"exp":"ShB","job":"MIN","kind":"leg","map":492,"reg":2950,"items":[32955],"spawns":[4,16],"dur":120,"region":"珂露西亞島","zone":"侏儒煙囪","x":36.18,"y":12.29,"ae":"滯潮村","aeShard":false,"aex":34.87,"aey":27.42},{"id":776,"lv":80,"exp":"ShB","job":"BTN","kind":"col","map":496,"reg":2950,"items":[33006,33008],"spawns":[4,16],"dur":120,"region":"黑風海","zone":"諾弗蘭特大陸坡","x":37.48,"y":11.63,"ae":"鰭人潮池","aeShard":false,"aex":32.74,"aey":17.27},{"id":852,"lv":85,"exp":"EW","job":"BTN","kind":"col","map":697,"reg":3703,"items":[36304],"spawns":[4,16],"dur":120,"region":"加雷馬","zone":"青磷管道","x":35.06,"y":5.83,"ae":"第三站","aeShard":false,"aex":31.97,"aey":18.01},{"id":695,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":695,"reg":3702,"items":[37821,38933],"spawns":[4,16],"dur":120,"region":"迷津","zone":"朝露林","x":28.14,"y":11.4,"ae":"公堂保管院","aeShard":false,"aex":30.29,"aey":11.89},{"id":833,"lv":90,"exp":"EW","job":"MIN","kind":"col","map":696,"reg":3703,"items":[36300],"spawns":[4,16],"dur":120,"region":"薩維奈島","zone":"神我寺","x":32.42,"y":24.97,"ae":"波洛伽護法村","aeShard":false,"aex":29.47,"aey":16.6},{"id":836,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":700,"reg":3705,"items":[36215,36179],"spawns":[4,16],"dur":120,"region":"厄爾庇斯","zone":"極北造物院","x":13.57,"y":7.19,"ae":"創作者之家","aeShard":false,"aex":10.68,"aey":17.17},{"id":933,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":699,"reg":3704,"items":[39706,41416],"spawns":[4,16],"dur":120,"region":"天外天垓","zone":"瓦銘癸辛","x":16.98,"y":29.39,"ae":"半途終旅","aeShard":false,"aex":10.61,"aey":27.11},{"id":1024,"lv":100,"exp":"DT","job":"MIN","kind":"col","map":861,"reg":4501,"items":[44233,43922],"spawns":[4,16],"dur":120,"region":"遺產之地","zone":"亞斯拉尼荒野東部","x":34.57,"y":8.25,"ae":"亞斯拉尼站","aeShard":false,"aex":31.66,"aey":25.78},{"id":1035,"lv":100,"exp":"DT","job":"BTN","kind":"leg","map":862,"reg":4502,"items":[44138,44844],"spawns":[4,16],"dur":120,"region":"憶想之地","zone":"勇武鬥技場","x":28.43,"y":17.41,"ae":"火之節點","aeShard":false,"aex":34.49,"aey":16.09},{"id":1192,"lv":100,"exp":"DT","job":"BTN","kind":"leg","map":860,"reg":4501,"items":[45971],"spawns":[4,16],"dur":120,"region":"夏勞尼荒野","zone":"帕利尤南沃野","x":34.99,"y":16.27,"ae":"美花黑澤恩","aeShard":false,"aex":27.55,"aey":10.18},{"id":217,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":5,"reg":23,"items":[10098],"spawns":[5],"dur":180,"region":"黑衣森林東部林區","zone":"荊棘森","x":17.68,"y":19.31,"ae":"霍桑山寨","aeShard":false,"aex":17.57,"aey":27.34},{"id":219,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":17,"reg":22,"items":[6147,7733],"spawns":[5],"dur":180,"region":"東拉諾西亞","zone":"鮮血濱","x":27.48,"y":32.79,"ae":"太陽海岸","aeShard":false,"aex":31.34,"aey":31},{"id":226,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":22,"reg":24,"items":[5273],"spawns":[5],"dur":180,"region":"東薩納蘭","zone":"宇格拉姆河","x":25.58,"y":23.24,"ae":"枯骨營地","aeShard":false,"aex":13.89,"aey":24.35},{"id":241,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":20,"reg":24,"items":[7766],"spawns":[5],"dur":180,"region":"西薩納蘭","zone":"金錘台地","x":18.91,"y":28.38,"ae":"地平關","aeShard":false,"aex":22.96,"aey":16.85},{"id":235,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":16,"reg":22,"items":[10098],"spawns":[6],"dur":180,"region":"拉諾西亞低地","zone":"雪松原","x":32.54,"y":12.99,"ae":"莫拉比造船廠","aeShard":false,"aex":24.64,"aey":35.13},{"id":240,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":6,"reg":23,"items":[7763,7610],"spawns":[6],"dur":180,"region":"黑衣森林南部林區","zone":"低徑","x":16.79,"y":30.66,"ae":"恬靜路營地","aeShard":false,"aex":16.94,"aey":28.49},{"id":245,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":4,"reg":23,"items":[8031],"spawns":[6],"dur":180,"region":"黑衣森林中央林區","zone":"翠淚擇伐區","x":30.58,"y":20.18,"ae":"彎枝牧場","aeShard":false,"aex":21.89,"aey":22.32},{"id":291,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":216,"reg":497,"items":[16725],"spawns":[6,18],"dur":120,"region":"魔大陸阿濟茲拉","zone":"阿爾法管區","x":5.47,"y":16.35,"ae":"螺旋港","aeShard":false,"aex":8.34,"aey":10.71},{"id":301,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":212,"reg":498,"items":[16723],"spawns":[6,18],"dur":120,"region":"德拉瓦尼亞山麓地","zone":"陸行鳥之森","x":34.74,"y":28.96,"ae":"尾羽部落","aeShard":false,"aex":33.47,"aey":23.19},{"id":325,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":213,"reg":498,"items":[5160],"spawns":[6,18],"dur":120,"region":"德拉瓦尼亞河谷地","zone":"薩雷安治學區","x":11.6,"y":15.99,"ae":"序言門（德拉瓦尼亞河谷地西方面）","aeShard":true,"aex":11.94,"aey":12.83},{"id":342,"lv":60,"exp":"HW","job":"BTN","kind":"uns","map":215,"reg":497,"items":[12889,12944],"spawns":[6,18],"dur":120,"region":"阿巴拉提亞雲海","zone":"溫杜屬本杜部落","x":35.88,"y":21.41,"ae":"尊杜部落","aeShard":false,"aex":10.52,"aey":14.43},{"id":345,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":211,"reg":25,"items":[4833,12903,14154],"spawns":[6,18],"dur":120,"region":"庫爾札斯西部高地","zone":"雙子池","x":22.42,"y":21.5,"ae":"隼巢","aeShard":false,"aex":31.9,"aey":36.54},{"id":328,"lv":70,"exp":"SB","job":"MIN","kind":"col","map":372,"reg":2401,"items":[32978,32979],"spawns":[6,18],"dur":120,"region":"太陽神草原","zone":"刃海","x":36.01,"y":26.42,"ae":"重逢市集","aeShard":false,"aex":32.78,"aey":28.13},{"id":500,"lv":70,"exp":"SB","job":"MIN","kind":"uns","map":354,"reg":2401,"items":[19972],"spawns":[6,18],"dur":120,"region":"延夏","zone":"七彩溪谷","x":29.87,"y":9.33,"ae":"烈士庵","aeShard":false,"aex":26.42,"aey":13.27},{"id":524,"lv":70,"exp":"SB","job":"BTN","kind":"uns","map":368,"reg":2400,"items":[19918],"spawns":[6,18],"dur":120,"region":"基拉巴尼亞山區","zone":"紅鏽岩山","x":24.07,"y":16.55,"ae":"阿拉加納","aeShard":false,"aex":23.68,"aey":6.42},{"id":527,"lv":70,"exp":"SB","job":"BTN","kind":"leg","map":369,"reg":2400,"items":[19934],"spawns":[6,18],"dur":120,"region":"基拉巴尼亞湖區","zone":"高岸","x":11.89,"y":12.72,"ae":"天營門","aeShard":false,"aex":8.44,"aey":20.97},{"id":535,"lv":70,"exp":"SB","job":"MIN","kind":"leg","map":371,"reg":2401,"items":[22417,23179],"spawns":[6,18],"dur":120,"region":"紅玉海","zone":"奧薩德東岸","x":10.92,"y":22.55,"ae":"自凝島","aeShard":false,"aex":23.34,"aey":9.7},{"id":332,"lv":75,"exp":"ShB","job":"MIN","kind":"col","map":495,"reg":2950,"items":[32981],"spawns":[6,18],"dur":120,"region":"拉凱提卡大森林","zone":"書著者樹洞","x":16.48,"y":18.16,"ae":"蛇行枝","aeShard":false,"aex":19.3,"aey":27.27},{"id":604,"lv":75,"exp":"ShB","job":"MIN","kind":"uns","map":494,"reg":2950,"items":[27727],"spawns":[6,18],"dur":120,"region":"伊爾美格","zone":"六子淺灘","x":26.48,"y":13.29,"ae":"雲村","aeShard":false,"aex":29.11,"aey":7.48},{"id":607,"lv":80,"exp":"ShB","job":"MIN","kind":"uns","map":491,"reg":2950,"items":[27730],"spawns":[6,18],"dur":120,"region":"雷克蘭德","zone":"雜草島","x":28.17,"y":33.21,"ae":"喬布要塞","aeShard":false,"aex":36.59,"aey":21.18},{"id":632,"lv":80,"exp":"ShB","job":"BTN","kind":"uns","map":492,"reg":2950,"items":[27835],"spawns":[6,18],"dur":120,"region":"珂露西亞島","zone":"刺舌滴","x":20.12,"y":27.34,"ae":"工匠村","aeShard":false,"aex":16.61,"aey":29.04},{"id":682,"lv":80,"exp":"ShB","job":"MIN","kind":"leg","map":496,"reg":2950,"items":[29970],"spawns":[6,18],"dur":120,"region":"黑風海","zone":"尊紫洞","x":34.44,"y":31.42,"ae":"鰭人潮池","aeShard":false,"aex":32.74,"aey":17.27},{"id":762,"lv":80,"exp":"ShB","job":"BTN","kind":"leg","map":493,"reg":2950,"items":[32950],"spawns":[6,18],"dur":120,"region":"安穆・艾蘭","zone":"迦利克村","x":16.12,"y":10.99,"ae":"絡尾部落","aeShard":false,"aex":11.26,"aey":16.98},{"id":830,"lv":85,"exp":"EW","job":"MIN","kind":"col","map":698,"reg":3704,"items":[36294],"spawns":[6,18],"dur":120,"region":"嘆息海","zone":"靈水之劍","x":16.37,"y":32.65,"ae":"淚灣","aeShard":false,"aex":9.8,"aey":34.74},{"id":338,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":697,"reg":3703,"items":[37817,38934],"spawns":[6,18],"dur":120,"region":"加雷馬","zone":"第三站","x":31.95,"y":17.35,"ae":"第三站","aeShard":false,"aex":31.97,"aey":18.01},{"id":854,"lv":90,"exp":"EW","job":"BTN","kind":"col","map":695,"reg":3702,"items":[36307,36309],"spawns":[6,18],"dur":120,"region":"迷津","zone":"理性其二","x":9.99,"y":22.36,"ae":"無路總部","aeShard":false,"aex":6.95,"aey":27.44},{"id":856,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":700,"reg":3705,"items":[36214,36195],"spawns":[6,18],"dur":120,"region":"厄爾庇斯","zone":"忘海","x":33.17,"y":14.76,"ae":"醒悟天測園","aeShard":false,"aex":24.51,"aey":24.19},{"id":932,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":696,"reg":3703,"items":[39708],"spawns":[6,18],"dur":120,"region":"薩維奈島","zone":"帕瓦納的悔悟","x":24.45,"y":13.07,"ae":"波洛伽護法村","aeShard":false,"aex":29.47,"aey":16.6},{"id":1028,"lv":100,"exp":"DT","job":"BTN","kind":"col","map":860,"reg":4501,"items":[44234,43929],"spawns":[6,18],"dur":120,"region":"夏勞尼荒野","zone":"帕利尤南沃野","x":31.69,"y":20.44,"ae":"胡薩塔伊驛鎮","aeShard":false,"aex":29.04,"aey":30.89},{"id":1032,"lv":100,"exp":"DT","job":"MIN","kind":"leg","map":862,"reg":4502,"items":[44135,44845],"spawns":[6,18],"dur":120,"region":"憶想之地","zone":"易知區","x":9.33,"y":15.21,"ae":"風之節點","aeShard":false,"aex":16.23,"aey":13.76},{"id":1193,"lv":100,"exp":"DT","job":"BTN","kind":"leg","map":861,"reg":4501,"items":[45972],"spawns":[6,18],"dur":120,"region":"遺產之地","zone":"亞斯拉尼荒野東部","x":34.24,"y":20.65,"ae":"亞斯拉尼站","aeShard":false,"aex":31.66,"aey":25.78},{"id":232,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":19,"reg":22,"items":[7595,5365],"spawns":[7],"dur":180,"region":"拉諾西亞高地","zone":"石綠湖","x":29.13,"y":25.48,"ae":"石綠湖營地","aeShard":false,"aex":30.25,"aey":23.18},{"id":234,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":18,"reg":22,"items":[7593,10098,8024],"spawns":[8],"dur":180,"region":"西拉諾西亞","zone":"四分石地","x":34.28,"y":28.31,"ae":"雨燕塔殖民地","aeShard":false,"aex":34.54,"aey":31.65},{"id":290,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":213,"reg":498,"items":[16726],"spawns":[8,20],"dur":120,"region":"德拉瓦尼亞河谷地","zone":"薩雷安睿哲區","x":16.57,"y":30.29,"ae":"序言門（德拉瓦尼亞河谷地西方面）","aeShard":true,"aex":11.94,"aey":12.83},{"id":344,"lv":60,"exp":"HW","job":"BTN","kind":"uns","map":211,"reg":25,"items":[12900],"spawns":[8,20],"dur":120,"region":"庫爾札斯西部高地","zone":"雙子池","x":8.77,"y":10.43,"ae":"隼巢","aeShard":false,"aex":31.9,"aey":36.54},{"id":395,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":214,"reg":498,"items":[14957,15647],"spawns":[8,20],"dur":120,"region":"德拉瓦尼亞雲海","zone":"豎骨島","x":10.02,"y":9.73,"ae":"天極白堊宮","aeShard":false,"aex":11.02,"aey":28.81},{"id":397,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":215,"reg":497,"items":[14151,15646],"spawns":[8,20],"dur":120,"region":"阿巴拉提亞雲海","zone":"試煉群島","x":37.55,"y":14.58,"ae":"尊杜部落","aeShard":false,"aex":10.52,"aey":14.43},{"id":310,"lv":65,"exp":"SB","job":"MIN","kind":"col","map":367,"reg":2400,"items":[32975,32977],"spawns":[8,20],"dur":120,"region":"基拉巴尼亞邊區","zone":"幻河","x":29.63,"y":12.92,"ae":"對等石","aeShard":false,"aex":29.99,"aey":26.35},{"id":499,"lv":70,"exp":"SB","job":"MIN","kind":"uns","map":368,"reg":2400,"items":[19973,17944],"spawns":[8,20],"dur":120,"region":"基拉巴尼亞山區","zone":"紅鏽岩山","x":26.99,"y":12.62,"ae":"阿拉加納","aeShard":false,"aex":23.68,"aey":6.42},{"id":525,"lv":70,"exp":"SB","job":"BTN","kind":"uns","map":354,"reg":2401,"items":[19865],"spawns":[8,20],"dur":120,"region":"延夏","zone":"七彩溪谷","x":28.08,"y":7.78,"ae":"烈士庵","aeShard":false,"aex":26.42,"aey":13.27},{"id":536,"lv":70,"exp":"SB","job":"MIN","kind":"leg","map":372,"reg":2401,"items":[22418,24255],"spawns":[8,20],"dur":120,"region":"太陽神草原","zone":"月神沙漠北端","x":24.13,"y":37.21,"ae":"重逢市集","aeShard":false,"aex":32.78,"aey":28.13},{"id":774,"lv":75,"exp":"ShB","job":"BTN","kind":"col","map":492,"reg":2950,"items":[33003],"spawns":[8,20],"dur":120,"region":"珂露西亞島","zone":"鑿岩門","x":27.95,"y":32.78,"ae":"滯潮村","aeShard":false,"aex":34.87,"aey":27.42},{"id":334,"lv":80,"exp":"ShB","job":"MIN","kind":"col","map":496,"reg":2950,"items":[32983,32985],"spawns":[8,20],"dur":120,"region":"黑風海","zone":"諾弗蘭特大陸坡","x":25.11,"y":4.48,"ae":"鰭人潮池","aeShard":false,"aex":32.74,"aey":17.27},{"id":630,"lv":80,"exp":"ShB","job":"BTN","kind":"uns","map":493,"reg":2950,"items":[27822],"spawns":[8,20],"dur":120,"region":"安穆・艾蘭","zone":"尾之道","x":19.33,"y":16.92,"ae":"鼴靈市集","aeShard":false,"aex":26.43,"aey":16.86},{"id":634,"lv":80,"exp":"ShB","job":"BTN","kind":"leg","map":491,"reg":2950,"items":[27761],"spawns":[8,20],"dur":120,"region":"雷克蘭德","zone":"無垢之證","x":26.48,"y":10.1,"ae":"喬布要塞","aeShard":false,"aex":36.59,"aey":21.18},{"id":683,"lv":80,"exp":"ShB","job":"BTN","kind":"leg","map":494,"reg":2950,"items":[29972],"spawns":[8,20],"dur":120,"region":"伊爾美格","zone":"安登小羊圈","x":36.53,"y":27.41,"ae":"雲村","aeShard":false,"aex":29.11,"aey":7.48},{"id":760,"lv":80,"exp":"ShB","job":"MIN","kind":"leg","map":495,"reg":2950,"items":[32951],"spawns":[8,20],"dur":120,"region":"拉凱提卡大森林","zone":"破裂卵殼","x":7.59,"y":30.22,"ae":"蛇行枝","aeShard":false,"aex":19.3,"aey":27.27},{"id":346,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":698,"reg":3704,"items":[37820,39237],"spawns":[8,20],"dur":120,"region":"嘆息海","zone":"苦灣","x":29.63,"y":22.39,"ae":"最佳威兔洞","aeShard":false,"aex":21.5,"aey":11.54},{"id":855,"lv":90,"exp":"EW","job":"BTN","kind":"col","map":699,"reg":3704,"items":[36310],"spawns":[8,20],"dur":120,"region":"天外天垓","zone":"諸神黃昏號魔導船","x":9.46,"y":33.24,"ae":"半途終旅","aeShard":false,"aex":10.61,"aey":27.11},{"id":857,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":696,"reg":3703,"items":[36214,36207,37278],"spawns":[8,20],"dur":120,"region":"薩維奈島","zone":"眾僧林園","x":25.3,"y":21.69,"ae":"波洛伽護法村","aeShard":false,"aex":29.47,"aey":16.6},{"id":934,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":700,"reg":3705,"items":[39707],"spawns":[8,20],"dur":120,"region":"厄爾庇斯","zone":"忘海","x":30.29,"y":18.29,"ae":"醒悟天測園","aeShard":false,"aex":24.51,"aey":24.19},{"id":1023,"lv":100,"exp":"DT","job":"MIN","kind":"col","map":860,"reg":4501,"items":[43920,43921],"spawns":[8,20],"dur":120,"region":"夏勞尼荒野","zone":"艾休凱亞尼荒原","x":9.24,"y":24.16,"ae":"謝申內青磷泉","aeShard":false,"aex":15.53,"aey":19.34},{"id":1030,"lv":100,"exp":"DT","job":"MIN","kind":"leg","map":857,"reg":4500,"items":[44139],"spawns":[8,20],"dur":120,"region":"奧闊帕恰山","zone":"納尤戈納","x":37.08,"y":29.59,"ae":"沃拉的迴響","aeShard":false,"aex":30.9,"aey":34.39},{"id":1188,"lv":100,"exp":"DT","job":"MIN","kind":"leg","map":858,"reg":4500,"items":[45970],"spawns":[8,20],"dur":120,"region":"克扎瑪烏卡濕地","zone":"孵卵樹群","x":12.03,"y":17.62,"ae":"哈努聚落","aeShard":false,"aex":18.1,"aey":11.64},{"id":214,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":17,"reg":22,"items":[7734],"spawns":[9],"dur":180,"region":"東拉諾西亞","zone":"鮮血濱","x":30.7,"y":27.01,"ae":"太陽海岸","aeShard":false,"aex":31.34,"aey":31},{"id":223,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":22,"reg":24,"items":[5118,6199,10095],"spawns":[9],"dur":180,"region":"東薩納蘭","zone":"火牆","x":28.09,"y":21.73,"ae":"枯骨營地","aeShard":false,"aex":13.89,"aey":24.35},{"id":339,"lv":55,"exp":"HW","job":"BTN","kind":"uns","map":211,"reg":25,"items":[12877,12882,12884,13767,13768],"spawns":[10,22],"dur":120,"region":"庫爾札斯西部高地","zone":"交匯河","x":31.15,"y":18.95,"ae":"隼巢","aeShard":false,"aex":31.9,"aey":36.54},{"id":768,"lv":55,"exp":"HW","job":"BTN","kind":"col","map":212,"reg":498,"items":[32992,32993,32994],"spawns":[10,22],"dur":120,"region":"德拉瓦尼亞山麓地","zone":"荒煙野地","x":29.21,"y":30.09,"ae":"尾羽部落","aeShard":false,"aex":33.47,"aey":23.19},{"id":299,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":214,"reg":498,"items":[16722],"spawns":[10,22],"dur":120,"region":"德拉瓦尼亞雲海","zone":"綠茵島","x":10.39,"y":38.14,"ae":"天極白堊宮","aeShard":false,"aex":11.02,"aey":28.81},{"id":318,"lv":60,"exp":"HW","job":"MIN","kind":"uns","map":215,"reg":497,"items":[12901,5159],"spawns":[10,22],"dur":120,"region":"阿巴拉提亞雲海","zone":"試煉群島","x":7.76,"y":7.61,"ae":"尊杜部落","aeShard":false,"aex":10.52,"aey":14.43},{"id":326,"lv":60,"exp":"HW","job":"MIN","kind":"leg","map":216,"reg":497,"items":[12945],"spawns":[10,22],"dur":120,"region":"魔大陸阿濟茲拉","zone":"生態園","x":36.07,"y":15.41,"ae":"螺旋港","aeShard":false,"aex":8.34,"aey":10.71},{"id":349,"lv":60,"exp":"HW","job":"BTN","kind":"leg","map":213,"reg":498,"items":[12904],"spawns":[10,22],"dur":120,"region":"德拉瓦尼亞河谷地","zone":"薩雷安精品工匠街","x":38.92,"y":23.8,"ae":"後記門（德拉瓦尼亞河谷地東方面）","aeShard":true,"aex":18.16,"aey":10.56},{"id":312,"lv":65,"exp":"SB","job":"MIN","kind":"col","map":371,"reg":2401,"items":[32976],"spawns":[10,22],"dur":120,"region":"紅玉海","zone":"蟹茹濱","x":21.2,"y":34.34,"ae":"碧玉水","aeShard":false,"aex":28.69,"aey":16.04},{"id":522,"lv":65,"exp":"SB","job":"BTN","kind":"uns","map":354,"reg":2401,"items":[19860],"spawns":[10,22],"dur":120,"region":"延夏","zone":"無二江流域","x":28.83,"y":25.57,"ae":"茨菰村","aeShard":false,"aex":30.16,"aey":19.49},{"id":503,"lv":70,"exp":"SB","job":"MIN","kind":"leg","map":368,"reg":2400,"items":[19959,21085],"spawns":[10,22],"dur":120,"region":"基拉巴尼亞山區","zone":"白鬼岩山","x":15.93,"y":33.94,"ae":"阿拉基利","aeShard":false,"aex":15.96,"aey":36.39},{"id":556,"lv":70,"exp":"SB","job":"MIN","kind":"leg","map":369,"reg":2400,"items":[24241],"spawns":[10,22],"dur":120,"region":"基拉巴尼亞湖區","zone":"鹽湖","x":21.76,"y":13.52,"ae":"天營門","aeShard":false,"aex":8.44,"aey":20.97},{"id":629,"lv":75,"exp":"ShB","job":"BTN","kind":"uns","map":491,"reg":2950,"items":[27836],"spawns":[10,22],"dur":120,"region":"雷克蘭德","zone":"射孔","x":26.29,"y":20.67,"ae":"喬布要塞","aeShard":false,"aex":36.59,"aey":21.18},{"id":773,"lv":75,"exp":"ShB","job":"BTN","kind":"col","map":494,"reg":2950,"items":[33002,33004],"spawns":[10,22],"dur":120,"region":"伊爾美格","zone":"羊毛道","x":4.05,"y":23.11,"ae":"群花館","aeShard":false,"aex":14.43,"aey":31.56},{"id":610,"lv":80,"exp":"ShB","job":"MIN","kind":"leg","map":496,"reg":2950,"items":[27704],"spawns":[10,22],"dur":120,"region":"黑風海","zone":"陸人墓標","x":32.84,"y":7.67,"ae":"鰭人潮池","aeShard":false,"aex":32.74,"aey":17.27},{"id":713,"lv":80,"exp":"ShB","job":"MIN","kind":"leg","map":493,"reg":2950,"items":[29976],"spawns":[10,22],"dur":120,"region":"安穆・艾蘭","zone":"比朗大礦山","x":20.17,"y":8.61,"ae":"鼴靈市集","aeShard":false,"aex":26.43,"aey":16.86},{"id":763,"lv":80,"exp":"ShB","job":"BTN","kind":"leg","map":495,"reg":2950,"items":[32953],"spawns":[10,22],"dur":120,"region":"拉凱提卡大森林","zone":"快婿樹島","x":33.74,"y":13.3,"ae":"法諾村","aeShard":false,"aex":29.16,"aey":17.41},{"id":767,"lv":80,"exp":"ShB","job":"MIN","kind":"col","map":367,"reg":2400,"items":[32987],"spawns":[10,22],"dur":120,"region":"基拉巴尼亞邊區","zone":"無垢乾谷","x":31.59,"y":31.41,"ae":"對等石","aeShard":false,"aex":29.99,"aey":26.35},{"id":400,"lv":90,"exp":"EW","job":"MIN","kind":"leg","map":695,"reg":3702,"items":[37822,39909],"spawns":[10,22],"dur":120,"region":"迷津","zone":"內環","x":11.15,"y":21.41,"ae":"無路總部","aeShard":false,"aex":6.95,"aey":27.44},{"id":832,"lv":90,"exp":"EW","job":"MIN","kind":"col","map":700,"reg":3705,"items":[36297,36299],"spawns":[10,22],"dur":120,"region":"厄爾庇斯","zone":"十二奇園","x":8.24,"y":36.59,"ae":"十二奇園","aeShard":false,"aex":8.6,"aey":32.47},{"id":858,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":699,"reg":3704,"items":[36214,36217,37691],"spawns":[10,22],"dur":120,"region":"天外天垓","zone":"異亞轉移陣","x":28.11,"y":13.23,"ae":"異亞村落","aeShard":false,"aex":22.8,"aey":8.59},{"id":935,"lv":90,"exp":"EW","job":"BTN","kind":"leg","map":697,"reg":3703,"items":[39709],"spawns":[10,22],"dur":120,"region":"加雷馬","zone":"都市區","x":17.78,"y":12.48,"ae":"第三站","aeShard":false,"aex":31.97,"aey":18.01},{"id":1022,"lv":95,"exp":"DT","job":"MIN","kind":"col","map":858,"reg":4500,"items":[43919],"spawns":[10,22],"dur":120,"region":"克扎瑪烏卡濕地","zone":"孵卵樹群","x":7,"y":7.38,"ae":"哈努聚落","aeShard":false,"aex":18.1,"aey":11.64},{"id":1029,"lv":100,"exp":"DT","job":"BTN","kind":"col","map":862,"reg":4502,"items":[43930],"spawns":[10,22],"dur":120,"region":"憶想之地","zone":"易知區","x":8.74,"y":7.49,"ae":"風之節點","aeShard":false,"aex":16.23,"aey":13.76},{"id":1031,"lv":100,"exp":"DT","job":"MIN","kind":"leg","map":860,"reg":4501,"items":[44136],"spawns":[10,22],"dur":120,"region":"夏勞尼荒野","zone":"亞塔納內草地","x":36.69,"y":28.05,"ae":"胡薩塔伊驛鎮","aeShard":false,"aex":29.04,"aey":30.89},{"id":1189,"lv":100,"exp":"DT","job":"MIN","kind":"leg","map":859,"reg":4500,"items":[45969],"spawns":[10,22],"dur":120,"region":"亞克特爾樹海","zone":"紺碧地門","x":17.95,"y":36.95,"ae":"瑪穆克","aeShard":false,"aex":36.11,"aey":32.07},{"id":212,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":53,"reg":25,"items":[5547],"spawns":[13],"dur":180,"region":"庫爾札斯中央高地","zone":"巨龍首","x":26.57,"y":24.43,"ae":"巨龍首營地","aeShard":false,"aex":26.07,"aey":16.72},{"id":220,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":17,"reg":22,"items":[6148,7724],"spawns":[13],"dur":180,"region":"東拉諾西亞","zone":"接雨草樹林","x":17.55,"y":27.59,"ae":"葡萄酒港","aeShard":false,"aex":21.01,"aey":21.57},{"id":221,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":22,"reg":24,"items":[4800,10098],"spawns":[13],"dur":180,"region":"東薩納蘭","zone":"枯骨","x":12.34,"y":15.89,"ae":"枯骨營地","aeShard":false,"aex":13.89,"aey":24.35},{"id":213,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":53,"reg":25,"items":[5537],"spawns":[17],"dur":180,"region":"庫爾札斯中央高地","zone":"白雲崖","x":8.46,"y":13.35,"ae":"巨龍首營地","aeShard":false,"aex":26.07,"aey":16.72},{"id":224,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":17,"reg":22,"items":[6152],"spawns":[17],"dur":180,"region":"東拉諾西亞","zone":"接雨草樹林","x":19.35,"y":33.09,"ae":"葡萄酒港","aeShard":false,"aex":21.01,"aey":21.57},{"id":251,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":5,"reg":23,"items":[10098],"spawns":[17],"dur":180,"region":"黑衣森林東部林區","zone":"九藤","x":22.72,"y":30.58,"ae":"霍桑山寨","aeShard":false,"aex":17.57,"aey":27.34},{"id":252,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":24,"reg":24,"items":[10093,10095],"spawns":[17],"dur":180,"region":"北薩納蘭","zone":"藍霧","x":23.08,"y":24.3,"ae":"青磷精煉所","aeShard":false,"aex":21.08,"aey":20.88},{"id":238,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":16,"reg":22,"items":[5146,5151,10095],"spawns":[18],"dur":180,"region":"拉諾西亞低地","zone":"莫拉比灣","x":23.76,"y":21.64,"ae":"莫拉比造船廠","aeShard":false,"aex":24.64,"aey":35.13},{"id":239,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":15,"reg":22,"items":[7760],"spawns":[19],"dur":180,"region":"中拉諾西亞","zone":"和風流地","x":24.33,"y":27.02,"ae":"盛夏農莊","aeShard":false,"aex":25.98,"aey":16.27},{"id":218,"lv":50,"exp":"ARR","job":"BTN","kind":"uns","map":5,"reg":23,"items":[5546,6209,10098],"spawns":[21],"dur":180,"region":"黑衣森林東部林區","zone":"蜜場","x":13.8,"y":23.84,"ae":"霍桑山寨","aeShard":false,"aex":17.57,"aey":27.34},{"id":225,"lv":50,"exp":"ARR","job":"MIN","kind":"uns","map":53,"reg":25,"items":[5158],"spawns":[21],"dur":180,"region":"庫爾札斯中央高地","zone":"巨龍首","x":23.39,"y":24.68,"ae":"巨龍首營地","aeShard":false,"aex":26.07,"aey":16.72}],"items":{"5547":{"n":"吸血枝","tw":true,"ic":"/i/025000/025001.png"},"5537":{"n":"薩維奈槲寄生","tw":true,"ic":"/i/025000/025001.png"},"7734":{"n":"多刺鳳梨種子","tw":true,"ic":"/i/027000/027457.png"},"5350":{"n":"蠶繭","tw":true,"ic":"/i/021000/021661.png"},"10098":{"n":"馬茲拉雅草","tw":true,"ic":"/i/025000/025016.png"},"5546":{"n":"延齡草的球根","tw":true,"ic":"/i/022000/022623.png"},"6209":{"n":"小小曼德拉草","tw":true,"ic":"/i/059000/059442.png"},"6147":{"n":"蜜檸檬","tw":true,"ic":"/i/025000/025305.png"},"7733":{"n":"蜜檸檬種子","tw":true,"ic":"/i/027000/027457.png"},"6148":{"n":"澤梅爾番茄","tw":true,"ic":"/i/025000/025209.png"},"7724":{"n":"澤梅爾番茄種子","tw":true,"ic":"/i/027000/027455.png"},"4800":{"n":"黑松露","tw":true,"ic":"/i/025000/025403.png"},"10095":{"n":"群居蠕蟲","tw":true,"ic":"/i/027000/027019.png"},"5118":{"n":"金礦","tw":true,"ic":"/i/021000/021212.png"},"6199":{"n":"礦爬蟲蟲","tw":true,"ic":"/i/059000/059433.png"},"6152":{"n":"拉諾西亞岩鹽","tw":true,"ic":"/i/022000/022617.png"},"5158":{"n":"星性岩","tw":true,"ic":"/i/021000/021251.png"},"5273":{"n":"金沙","tw":true,"ic":"/i/021000/021214.png"},"7595":{"n":"鮮血橙","tw":true,"ic":"/i/025000/025312.png"},"5365":{"n":"竹材","tw":true,"ic":"/i/022000/022451.png"},"7591":{"n":"提諾爾卡茶葉","tw":true,"ic":"/i/025000/025020.png"},"7593":{"n":"拉諾西亞韭蔥","tw":true,"ic":"/i/025000/025216.png"},"8024":{"n":"水鳥之羽","tw":true,"ic":"/i/021000/021902.png"},"5150":{"n":"堇青石原石","tw":true,"ic":"/i/021000/021453.png"},"5149":{"n":"黃玉原石","tw":true,"ic":"/i/021000/021453.png"},"5147":{"n":"鑽石原石","tw":true,"ic":"/i/021000/021453.png"},"5148":{"n":"綠寶石原石","tw":true,"ic":"/i/021000/021453.png"},"5146":{"n":"紅寶石原石","tw":true,"ic":"/i/021000/021453.png"},"5151":{"n":"藍寶石原石","tw":true,"ic":"/i/021000/021453.png"},"7760":{"n":"3級拉諾西亞土壤","tw":true,"ic":"/i/027000/027403.png"},"7763":{"n":"3級黑衣森林土壤","tw":true,"ic":"/i/027000/027406.png"},"7610":{"n":"靈性岩","tw":true,"ic":"/i/021000/021213.png"},"7766":{"n":"3級薩納蘭土壤","tw":true,"ic":"/i/027000/027409.png"},"7611":{"n":"黑衣香木","tw":true,"ic":"/i/022000/022415.png"},"8031":{"n":"高級黑衣香木","tw":true,"ic":"/i/022000/022415.png"},"8030":{"n":"強靈性岩","tw":true,"ic":"/i/021000/021213.png"},"9519":{"n":"浮石","tw":true,"ic":"/i/021000/021454.png"},"10093":{"n":"石蜥蜴的初蛋","tw":true,"ic":"/i/021000/021215.png"},"16724":{"n":"鎢華","tw":true,"ic":"/i/021000/021209.png"},"16726":{"n":"沸石","tw":true,"ic":"/i/021000/021210.png"},"16725":{"n":"輝金礦","tw":true,"ic":"/i/021000/021227.png"},"5392":{"n":"柚木原木","tw":true,"ic":"/i/022000/022403.png"},"16721":{"n":"星棉","tw":true,"ic":"/i/025000/025032.png"},"16722":{"n":"棕菇","tw":true,"ic":"/i/025000/025405.png"},"16723":{"n":"顯貴鼠尾草","tw":true,"ic":"/i/025000/025002.png"},"32970":{"n":"收藏用黃鐵礦","tw":true,"ic":"/i/021000/021207.png","sc":{"n":20,"cur":"大地紫票"}},"32971":{"n":"收藏用輝銅礦","tw":true,"ic":"/i/021000/021209.png","sc":{"n":20,"cur":"大地紫票"}},"32972":{"n":"收藏用褐鐵礦","tw":true,"ic":"/i/021000/021206.png","sc":{"n":20,"cur":"大地紫票"}},"32973":{"n":"收藏用阿巴拉提亞天然水","tw":true,"ic":"/i/022000/022614.png","sc":{"n":20,"cur":"大地紫票"}},"32974":{"n":"收藏用皇金沙","tw":true,"ic":"/i/021000/021220.png","sc":{"n":20,"cur":"大地紫票"}},"32975":{"n":"收藏用鋰輝石原石","tw":true,"ic":"/i/021000/021474.png","sc":{"n":20,"cur":"大地紫票"}},"32977":{"n":"收藏用藍晶石原石","tw":true,"ic":"/i/021000/021472.png","sc":{"n":20,"cur":"大地紫票"}},"32976":{"n":"收藏用星尖石原石","tw":true,"ic":"/i/021000/021475.png","sc":{"n":20,"cur":"大地紫票"}},"12901":{"n":"阿巴拉提亞岩鹽","tw":true,"ic":"/i/022000/022617.png"},"5159":{"n":"深緋石英","tw":true,"ic":"/i/021000/021456.png"},"12538":{"n":"堅鋼礦","tw":true,"ic":"/i/021000/021224.png"},"5226":{"n":"星砂礫","tw":true,"ic":"/i/021000/021463.png"},"5163":{"n":"青紫石英","tw":true,"ic":"/i/021000/021461.png"},"12536":{"n":"皇金礦","tw":true,"ic":"/i/021000/021225.png"},"14148":{"n":"光銀礦","tw":true,"ic":"/i/021000/021221.png"},"12540":{"n":"金雲母","tw":true,"ic":"/i/021000/021227.png"},"5160":{"n":"紺碧石英","tw":true,"ic":"/i/021000/021457.png"},"12945":{"n":"紅明礬","tw":true,"ic":"/i/022000/022656.png"},"32978":{"n":"收藏用石青原石","tw":true,"ic":"/i/021000/021472.png","sc":{"n":20,"cur":"大地紫票"}},"32979":{"n":"收藏用清銀礦","tw":true,"ic":"/i/021000/021213.png","sc":{"n":20,"cur":"大地紫票"}},"32980":{"n":"收藏用鈦銅礦","tw":true,"ic":"/i/021000/021202.png","sc":{"n":20,"cur":"大地紫票"}},"32982":{"n":"收藏用透鋰長石原石","tw":true,"ic":"/i/021000/021477.png","sc":{"n":20,"cur":"大地紫票"}},"32981":{"n":"收藏用青金石原石","tw":true,"ic":"/i/021000/021472.png","sc":{"n":20,"cur":"大地紫票"}},"32983":{"n":"收藏用海鹽","tw":true,"ic":"/i/022000/022617.png","sc":{"n":20,"cur":"大地紫票"}},"32985":{"n":"收藏用黑瑪瑙原石","tw":true,"ic":"/i/021000/021231.png","sc":{"n":20,"cur":"大地紫票"}},"37817":{"n":"髮晶原石","tw":true,"ic":"/i/021000/021474.png"},"38934":{"n":"黝簾石原石","tw":true,"ic":"/i/021000/021472.png"},"12877":{"n":"小包心菜","tw":true,"ic":"/i/025000/025208.png"},"12882":{"n":"庫爾札斯茶葉","tw":true,"ic":"/i/025000/025020.png"},"12884":{"n":"庫爾札斯青蔥","tw":true,"ic":"/i/025000/025035.png"},"13767":{"n":"小包心菜種子","tw":true,"ic":"/i/027000/027455.png"},"13768":{"n":"庫爾札斯茶樹種子","tw":true,"ic":"/i/027000/027451.png"},"12896":{"n":"舊世界無花果","tw":true,"ic":"/i/025000/025318.png"},"13765":{"n":"舊世界無花果種子","tw":true,"ic":"/i/027000/027457.png"},"12899":{"n":"牛肝菌","tw":true,"ic":"/i/025000/025401.png"},"12943":{"n":"德拉瓦尼亞槲寄生","tw":true,"ic":"/i/025000/025001.png"},"12889":{"n":"伊修加爾德檸檬","tw":true,"ic":"/i/025000/025305.png"},"12944":{"n":"阿巴拉提亞槲寄生","tw":true,"ic":"/i/025000/025001.png"},"12897":{"n":"雲海香蕉","tw":true,"ic":"/i/025000/025319.png"},"12898":{"n":"傘蘑","tw":true,"ic":"/i/025000/025408.png"},"12900":{"n":"卡貝基野菜","tw":true,"ic":"/i/025000/025222.png"},"4833":{"n":"香草豆","tw":true,"ic":"/i/025000/025014.png"},"12903":{"n":"德拉瓦尼亞紅彩椒","tw":true,"ic":"/i/025000/025018.png"},"14154":{"n":"雪棉","tw":true,"ic":"/i/025000/025032.png"},"37820":{"n":"鈦鐵礦","tw":true,"ic":"/i/021000/021205.png"},"39237":{"n":"不定性無粒隕石","tw":true,"ic":"/i/021000/021210.png"},"12634":{"n":"星極花","tw":true,"ic":"/i/022000/022627.png"},"12902":{"n":"甜扁桃","tw":true,"ic":"/i/025000/025017.png"},"12904":{"n":"鮮紅羅蘭莓","tw":true,"ic":"/i/025000/025306.png"},"12587":{"n":"金合歡樹皮","tw":true,"ic":"/i/023000/023001.png"},"14957":{"n":"樟木古樹","tw":true,"ic":"/i/022000/022414.png"},"15647":{"n":"樹汁結晶","tw":true,"ic":"/i/020000/020018.png"},"14151":{"n":"菱鋅礦","tw":true,"ic":"/i/021000/021473.png"},"15646":{"n":"隕石","tw":true,"ic":"/i/021000/021203.png"},"37822":{"n":"灰綠矽藻土","tw":true,"ic":"/i/022000/022634.png"},"39909":{"n":"不定性綠片岩","tw":true,"ic":"/i/021000/021252.png"},"37818":{"n":"仁面木原木","tw":true,"ic":"/i/022000/022414.png"},"39234":{"n":"不定性海綿菇","tw":true,"ic":"/i/025000/025408.png"},"19968":{"n":"鋰輝石原石","tw":true,"ic":"/i/021000/021474.png"},"19970":{"n":"星尖石原石","tw":true,"ic":"/i/021000/021475.png"},"19973":{"n":"薔薇輝石原石","tw":true,"ic":"/i/021000/021471.png"},"17944":{"n":"硬拳石","tw":true,"ic":"/i/021000/021209.png"},"19972":{"n":"琅玕原石","tw":true,"ic":"/i/021000/021252.png"},"19971":{"n":"石青原石","tw":true,"ic":"/i/021000/021472.png"},"19907":{"n":"阿拉米格鹽","tw":true,"ic":"/i/022000/022617.png"},"19959":{"n":"鉻鐵礦","tw":true,"ic":"/i/021000/021205.png"},"21085":{"n":"基拉巴尼亞清水","tw":true,"ic":"/i/022000/022614.png"},"19958":{"n":"鈀金礦","tw":true,"ic":"/i/021000/021217.png"},"19860":{"n":"竹筍","tw":true,"ic":"/i/025000/025229.png"},"19852":{"n":"奧薩德梅","tw":true,"ic":"/i/025000/025311.png"},"19918":{"n":"祝聖羅勒草","tw":true,"ic":"/i/025000/025010.png"},"19865":{"n":"蓮藕","tw":true,"ic":"/i/025000/025226.png"},"19857":{"n":"長頸駱薑","tw":true,"ic":"/i/025000/025012.png"},"17948":{"n":"破壞神之杖","tw":true,"ic":"/i/025000/025507.png"},"19934":{"n":"榧木原木","tw":true,"ic":"/i/022000/022405.png"},"19991":{"n":"苧麻","tw":true,"ic":"/i/021000/021651.png"},"21086":{"n":"太陽棉","tw":true,"ic":"/i/025000/025037.png"},"22417":{"n":"夜鐵礦","tw":true,"ic":"/i/021000/021203.png"},"23179":{"n":"鷹眼石","tw":true,"ic":"/i/021000/021228.png"},"22418":{"n":"清銀礦","tw":true,"ic":"/i/021000/021213.png"},"24255":{"n":"太陽神泉水","tw":true,"ic":"/i/022000/022678.png"},"22419":{"n":"黑柳原木","tw":true,"ic":"/i/022000/022402.png"},"23180":{"n":"古木樹液塊","tw":true,"ic":"/i/022000/022638.png"},"22420":{"n":"真麻","tw":true,"ic":"/i/021000/021673.png"},"24240":{"n":"岩鐵","tw":true,"ic":"/i/021000/021216.png"},"24241":{"n":"常輝礦","tw":true,"ic":"/i/021000/021223.png"},"24242":{"n":"烏侖代硬木原木","tw":true,"ic":"/i/022000/022420.png"},"24243":{"n":"延夏棉","tw":true,"ic":"/i/021000/021652.png"},"27726":{"n":"烏鋼石原石","tw":true,"ic":"/i/021000/021476.png"},"27727":{"n":"硬水鋁石原石","tw":true,"ic":"/i/021000/021473.png"},"27728":{"n":"青金石原石","tw":true,"ic":"/i/021000/021472.png"},"27729":{"n":"三重石原石","tw":true,"ic":"/i/021000/021471.png"},"27730":{"n":"透鋰長石原石","tw":true,"ic":"/i/021000/021477.png"},"27731":{"n":"黑瑪瑙原石","tw":true,"ic":"/i/021000/021231.png"},"27705":{"n":"彩虹晶","tw":true,"ic":"/i/021000/021232.png"},"28717":{"n":"輕鈹礦","tw":true,"ic":"/i/021000/021455.png"},"27704":{"n":"重鎢礦","tw":true,"ic":"/i/021000/021203.png"},"37819":{"n":"訶子","tw":true,"ic":"/i/025000/025017.png"},"39906":{"n":"不定性訶子葉","tw":true,"ic":"/i/025000/025015.png"},"27833":{"n":"蠶豆","tw":true,"ic":"/i/025000/025353.png"},"27836":{"n":"歐薄荷","tw":true,"ic":"/i/025000/025016.png"},"27822":{"n":"黃新薯","tw":true,"ic":"/i/025000/025204.png"},"27828":{"n":"迷霧菠菜","tw":true,"ic":"/i/025000/025206.png"},"27835":{"n":"小檸檬","tw":true,"ic":"/i/025000/025305.png"},"27688":{"n":"檀香木原木","tw":true,"ic":"/i/022000/022401.png"},"28716":{"n":"檀香木樹液","tw":true,"ic":"/i/022000/022638.png"},"27761":{"n":"泡繭","tw":true,"ic":"/i/021000/021661.png"},"30486":{"n":"金錫礦","tw":true,"ic":"/i/021000/021227.png"},"29968":{"n":"輝鈷鐵礦","tw":true,"ic":"/i/021000/021227.png"},"29970":{"n":"尊紫碎塊","tw":true,"ic":"/i/021000/021469.png"},"29972":{"n":"印茄原木","tw":true,"ic":"/i/022000/022423.png"},"30485":{"n":"柔嫩茴香","tw":true,"ic":"/i/025000/025036.png"},"29978":{"n":"帝王蕨菜","tw":true,"ic":"/i/025000/025038.png"},"37821":{"n":"楊梅","tw":true,"ic":"/i/025000/025015.png"},"38933":{"n":"晨霧樹皮","tw":true,"ic":"/i/022000/022418.png"},"29976":{"n":"灰明礬","tw":true,"ic":"/i/022000/022604.png"},"29974":{"n":"紫草","tw":true,"ic":"/i/025000/025022.png"},"32955":{"n":"超硬水","tw":true,"ic":"/i/022000/022689.png"},"32952":{"n":"白夜結晶","tw":true,"ic":"/i/021000/021232.png"},"32951":{"n":"苦灰石","tw":true,"ic":"/i/021000/021225.png"},"32954":{"n":"硬質金合歡樹皮","tw":true,"ic":"/i/022000/022418.png"},"32950":{"n":"銀山毛櫸原木","tw":true,"ic":"/i/022000/022412.png"},"32953":{"n":"蒼棉花","tw":true,"ic":"/i/025000/025040.png"},"32984":{"n":"收藏用海底岩","tw":true,"ic":"/i/021000/021203.png","sc":{"n":20,"cur":"大地紫票"}},"32986":{"n":"收藏用重鎢礦","tw":true,"ic":"/i/021000/021203.png","sc":{"n":20,"cur":"大地紫票"}},"32987":{"n":"收藏用基拉巴尼亞明礬","tw":true,"ic":"/i/022000/022644.png","sc":{"n":20,"cur":"大地紫票"}},"32992":{"n":"收藏用暗栗木樹液","tw":true,"ic":"/i/022000/022654.png","sc":{"n":20,"cur":"大地紫票"}},"32993":{"n":"收藏用暗栗木原木","tw":true,"ic":"/i/022000/022420.png","sc":{"n":20,"cur":"大地紫票"}},"32994":{"n":"收藏用暗栗樹枝","tw":true,"ic":"/i/022000/022416.png","sc":{"n":20,"cur":"大地紫票"}},"32995":{"n":"收藏用毛栗子","tw":true,"ic":"/i/025000/025302.png","sc":{"n":20,"cur":"大地紫票"}},"32996":{"n":"收藏用暗栗木樹脂","tw":true,"ic":"/i/022000/022674.png","sc":{"n":20,"cur":"大地紫票"}},"32997":{"n":"收藏用落葉松原木","tw":true,"ic":"/i/022000/022403.png","sc":{"n":20,"cur":"大地紫票"}},"32999":{"n":"收藏用落葉松樹液","tw":true,"ic":"/i/022000/022642.png","sc":{"n":20,"cur":"大地紫票"}},"32998":{"n":"收藏用香菇","tw":true,"ic":"/i/025000/025401.png","sc":{"n":20,"cur":"大地紫票"}},"33000":{"n":"收藏用松脂","tw":true,"ic":"/i/022000/022638.png","sc":{"n":20,"cur":"大地紫票"}},"33001":{"n":"收藏用松木原木","tw":true,"ic":"/i/022000/022414.png","sc":{"n":20,"cur":"大地紫票"}},"33002":{"n":"收藏用仙子蘋果","tw":true,"ic":"/i/025000/025308.png","sc":{"n":20,"cur":"大地紫票"}},"33004":{"n":"收藏用仙果木原木","tw":true,"ic":"/i/022000/022404.png","sc":{"n":20,"cur":"大地紫票"}},"33003":{"n":"收藏用白橡木原木","tw":true,"ic":"/i/022000/022407.png","sc":{"n":20,"cur":"大地紫票"}},"33005":{"n":"收藏用沙柚木原木","tw":true,"ic":"/i/022000/022403.png","sc":{"n":20,"cur":"大地紫票"}},"33007":{"n":"收藏用琥珀丁香","tw":true,"ic":"/i/025000/025023.png","sc":{"n":20,"cur":"大地紫票"}},"33006":{"n":"收藏用海藻","tw":true,"ic":"/i/025000/025225.png","sc":{"n":20,"cur":"大地紫票"}},"33008":{"n":"收藏用珊瑚","tw":true,"ic":"/i/029000/029062.png","sc":{"n":20,"cur":"大地紫票"}},"33009":{"n":"收藏用烏侖代硬木原木","tw":true,"ic":"/i/022000/022420.png","sc":{"n":20,"cur":"大地紫票"}},"36293":{"n":"收藏用紫黃晶原石","tw":true,"ic":"/i/021000/021475.png","sc":{"n":22,"cur":"大地紫票"}},"36295":{"n":"收藏用北洋岩鹽","tw":true,"ic":"/i/022000/022688.png","sc":{"n":26,"cur":"大地紫票"}},"36294":{"n":"收藏用鉍礦","tw":true,"ic":"/i/021000/021217.png","sc":{"n":24,"cur":"大地紫票"}},"36296":{"n":"收藏用弗里金礦","tw":true,"ic":"/i/021000/021206.png","sc":{"n":28,"cur":"大地紫票"}},"36298":{"n":"收藏用艾布拉納明礬","tw":true,"ic":"/i/022000/022616.png","sc":{"n":32,"cur":"大地紫票"}},"36297":{"n":"收藏用藍鋯石原石","tw":true,"ic":"/i/021000/021472.png","sc":{"n":30,"cur":"大地紫票"}},"36299":{"n":"收藏用鐵雲母","tw":true,"ic":"/i/021000/021226.png","sc":{"n":34,"cur":"大地紫票"}},"36300":{"n":"收藏用白鑞礦","tw":true,"ic":"/i/021000/021211.png","sc":{"n":34,"cur":"大地紫票"}},"36215":{"n":"極硬水","tw":true,"ic":"/i/022000/022678.png"},"36216":{"n":"北洲苦灰石","tw":true,"ic":"/i/021000/021225.png"},"37279":{"n":"艾布拉納賽黃晶原石","tw":true,"ic":"/i/021000/021477.png"},"37694":{"n":"不定性鐵隕石","tw":true,"ic":"/i/021000/021472.png"},"36167":{"n":"月堅鋼礦","tw":true,"ic":"/i/021000/021224.png"},"36179":{"n":"銠金沙","tw":true,"ic":"/i/021000/021244.png"},"36303":{"n":"收藏用棕櫚原木","tw":true,"ic":"/i/022000/022410.png","sc":{"n":22,"cur":"大地紫票"}},"36305":{"n":"收藏用椰子","tw":true,"ic":"/i/025000/025323.png","sc":{"n":26,"cur":"大地紫票"}},"36304":{"n":"收藏用紅松原木","tw":true,"ic":"/i/022000/022403.png","sc":{"n":24,"cur":"大地紫票"}},"36306":{"n":"收藏用無花果","tw":true,"ic":"/i/025000/025318.png","sc":{"n":28,"cur":"大地紫票"}},"36308":{"n":"收藏用古代肉豆蔻","tw":true,"ic":"/i/025000/025021.png","sc":{"n":32,"cur":"大地紫票"}},"36307":{"n":"收藏用裸麥","tw":true,"ic":"/i/025000/025359.png","sc":{"n":30,"cur":"大地紫票"}},"36309":{"n":"收藏用冰山萵苣","tw":true,"ic":"/i/025000/025219.png","sc":{"n":34,"cur":"大地紫票"}},"36310":{"n":"收藏用迷彩棉","tw":true,"ic":"/i/025000/025032.png","sc":{"n":34,"cur":"大地紫票"}},"36214":{"n":"天然香料","tw":true,"ic":"/i/025000/025024.png"},"36195":{"n":"藤春木原木","tw":true,"ic":"/i/022000/022405.png"},"36207":{"n":"金繭","tw":true,"ic":"/i/021000/021682.png"},"37278":{"n":"薩維奈玉米","tw":true,"ic":"/i/025000/025352.png"},"36217":{"n":"迷途草","tw":true,"ic":"/i/025000/025201.png"},"37691":{"n":"不定性結晶花","tw":true,"ic":"/i/025000/025039.png"},"39708":{"n":"磁赤鐵礦","tw":true,"ic":"/i/022000/022656.png"},"39706":{"n":"軟銀礦","tw":true,"ic":"/i/021000/021227.png"},"41416":{"n":"不定性古龍鱗","tw":true,"ic":"/i/022000/022251.png"},"39707":{"n":"紫鋰輝石原石","tw":true,"ic":"/i/021000/021475.png"},"39709":{"n":"油菜花","tw":true,"ic":"/i/022000/022696.png"},"39710":{"n":"愛情花","tw":true,"ic":"/i/025000/025413.png"},"39705":{"n":"暗櫻原木","tw":true,"ic":"/i/022000/022408.png"},"41413":{"n":"不定性可可豆","tw":true,"ic":"/i/025000/025314.png"},"43919":{"n":"收藏用黑琥珀","tw":true,"ic":"/i/021000/021270.png","sc":{"n":35,"cur":"大地紫票"}},"43920":{"n":"收藏用鈦金礦","tw":true,"ic":"/i/021000/021212.png","sc":{"n":36,"cur":"大地紫票"}},"43921":{"n":"收藏用氧化鎂礦石","tw":true,"ic":"/i/021000/021205.png","sc":{"n":36,"cur":"大地橙票"}},"44233":{"n":"收藏用白黃金礦","tw":true,"ic":"/i/021000/021217.png","sc":{"n":38,"cur":"大地紫票"}},"43922":{"n":"收藏用黑鐵礦","tw":true,"ic":"/i/021000/021231.png","sc":{"n":38,"cur":"大地橙票"}},"43923":{"n":"收藏用火山灰土","tw":true,"ic":"/i/021000/021233.png","sc":{"n":38,"cur":"大地橙票"}},"43926":{"n":"收藏用高山亞麻","tw":true,"ic":"/i/025000/025033.png","sc":{"n":35,"cur":"大地紫票"}},"43927":{"n":"收藏用甜可可豆","tw":true,"ic":"/i/025000/025314.png","sc":{"n":36,"cur":"大地紫票"}},"43928":{"n":"收藏用深紅木原木","tw":true,"ic":"/i/022000/022426.png","sc":{"n":36,"cur":"大地橙票"}},"44234":{"n":"收藏用相思木樹皮","tw":true,"ic":"/i/022000/022418.png","sc":{"n":38,"cur":"大地紫票"}},"43929":{"n":"收藏用相思木原木","tw":true,"ic":"/i/022000/022404.png","sc":{"n":38,"cur":"大地橙票"}},"43930":{"n":"收藏用香風月桂葉","tw":true,"ic":"/i/025000/025009.png","sc":{"n":38,"cur":"大地橙票"}},"44139":{"n":"圖拉爾明礬","tw":true,"ic":"/i/022000/022673.png"},"44136":{"n":"真銀礦","tw":true,"ic":"/i/021000/021223.png"},"44135":{"n":"混鐵礦","tw":true,"ic":"/i/021000/021221.png"},"44845":{"n":"亞歷山德里亞金屬礦","tw":true,"ic":"/i/021000/021491.png"},"44137":{"n":"重蟻木原木","tw":true,"ic":"/i/022000/022415.png"},"44140":{"n":"圓扇刺的花","tw":true,"ic":"/i/022000/022697.png"},"44138":{"n":"海島棉","tw":true,"ic":"/i/025000/025032.png"},"44844":{"n":"光學纖維草","tw":true,"ic":"/i/022000/022699.png"},"45970":{"n":"玫瑰紅紋石原石","tw":true,"ic":"/i/021000/021471.png"},"45969":{"n":"八面體隕鐵礦石","tw":true,"ic":"/i/021000/021203.png"},"45973":{"n":"雷擊石","tw":true,"ic":"/i/021000/021492.png"},"45968":{"n":"破布木原木","tw":true,"ic":"/i/022000/022414.png"},"45971":{"n":"夏勞尼咖啡豆","tw":true,"ic":"/i/027000/027501.png"},"45972":{"n":"胭脂蟲染料","tw":true,"ic":"/i/025000/025011.png"}}}</script>
+<script>
+(() => {
+  const DATA = JSON.parse(document.getElementById('data').textContent);
+  const ITEMS = DATA.items, NODES = DATA.nodes;
+  const EXPS = [['ARR','2.x 重生'],['HW','3.x 蒼天'],['SB','4.x 紅蓮'],['ShB','5.x 暗影'],['EW','6.x 曉月'],['DT','7.x 金曦']];
+  const SERVERS = [['陸行鳥','陸行鳥（全伺服器）'],['伊弗利特','伊弗利特'],['迦樓羅','迦樓羅'],['利維坦','利維坦'],['鳳凰','鳳凰'],['奧汀','奧汀'],['巴哈姆特','巴哈姆特'],['泰坦','泰坦']];
+  const EXCLUDED_WORLDS = new Set([4034]); // 拉姆：已關閉，掛單凍結
+  const ET_RATIO = 3600 / 175;
+  const UNS_TOP = 20;   // 未知採集點只顯示划算度前 20 名的素材
+  const KIND_NAME = { leg: '傳說', uns: '未知', col: '收藏品' };
+  const ICON = p => p ? 'https://xivapi.com' + p : '';
+  const $ = s => document.querySelector(s);
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('lgn.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('lgn.' + k, JSON.stringify(v)); } catch {} },
+  };
+  const state = {
+    job: store.get('job', 'ALL'),
+    exps: new Set(store.get('exps', EXPS.map(e => e[0]))),
+    kinds: new Set(store.get('kinds3', ['leg', 'uns', 'col']).filter(k => k in KIND_NAME)),
+    marks: new Set(store.get('marks', [])),
+    gp: Object.assign({ now: 900, max: 900, cost: 600, regen: 300, stops: 4, velMin: 2 }, store.get('gp', {})),
+    q: '',
+    srv: store.get('srv', '陸行鳥'),
+    sort: store.get('sort', 'lv'),
+  };
+  let prices = {};      // itemId -> {avg, n, last} | null
+  let market = {};      // itemId -> {vel, avg, minL, score, rank} 賣出划算度（Universalis aggregated）
+  let priceStatus = 'loading';
+
+  // ---------- ET ----------
+  const etNow = () => Date.now() * ET_RATIO;
+  const pad = n => String(n).padStart(2, '0');
+  const fmtDur = ms => { const s = Math.max(0, Math.round(ms / 1000)); const m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)}時${pad(m % 60)}分` : `${m}:${pad(s % 60)}`; };
+  const fmtClock = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // 回傳 ET 某整點這一輪的開始（若仍在持續時間內則是本輪，否則下一輪）的現實毫秒
+  function windowFor(hour, durMin) {
+    const et = etNow();
+    const day = Math.floor(et / 86400000) * 86400000;
+    let start = day + hour * 3600000;
+    if (start > et) { if (start - 86400000 + durMin * 60000 > et) start -= 86400000; }
+    else if (start + durMin * 60000 <= et) start += 86400000;
+    return { start: start / ET_RATIO, end: (start + durMin * 60000) / ET_RATIO };
+  }
+
+  // ---------- 最近 10 筆成交均價 ----------
+  function recentAverage(sales) {
+    const v = sales.filter(s => s.pricePerUnit > 0).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
+    if (!v.length) return null;
+    const avg = Math.round(v.reduce((a, s) => a + s.pricePerUnit, 0) / v.length);
+    return { avg, n: v.length, last: v[0].timestamp * 1000 };
+  }
+
+  // ---------- Universalis ----------
+  // 與參考網站相同：/history 端點，一年內最新的成交；批次查詢、限制併發、失敗重試
+  const HIST_BATCH = 20, HIST_CONCURRENCY = 4;
+  async function fetchJson(url, tries = 3) {
+    for (let k = 1; ; k++) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) return await res.json();
+        if (res.status === 404) return null;
+        throw new Error('HTTP ' + res.status);
+      } catch (e) {
+        if (k >= tries) throw e;
+        await new Promise(r => setTimeout(r, 600 * k));
+      }
+    }
+  }
+  // ---------- 賣出划算度：與 ffxiv_tw_sell_ranking_v5 相同 ----------
+  // 分數 = 日均銷量 × 平均成交價 × 行情係數（目前最低掛單 ÷ 平均成交價，限制在 0.25–2）
+  async function loadMarket(scope) {
+    const isDC = scope === '陸行鳥';
+    const pick = (node, field) => {
+      if (!node) return undefined;
+      const w = node.world ? node.world[field] : undefined;
+      const d = node.dc ? node.dc[field] : undefined;
+      return isDC ? (d !== undefined ? d : w) : w;
+    };
+    // 最低掛單若來自已關閉的拉姆就不採用
+    const minOf = node => {
+      if (!node) return undefined;
+      const src = isDC ? (node.dc || node.world) : node.world;
+      if (!src || EXCLUDED_WORLDS.has(src.worldId)) return undefined;
+      return src.price;
+    };
+    const ids = Object.keys(ITEMS).filter(id => ITEMS[id].tw && !ITEMS[id].sc);
+    const out = {};
+    for (let i = 0; i < ids.length; i += 100) {
+      const json = await fetchJson(`https://universalis.app/api/v2/aggregated/${encodeURIComponent(scope)}/${ids.slice(i, i + 100).join(',')}`);
+      for (const item of json?.results || []) {
+        const nq = item.nq || {}, hq = item.hq || {};
+        const vN = pick(nq.dailySaleVelocity, 'quantity'), vH = pick(hq.dailySaleVelocity, 'quantity');
+        const vel = (vN !== undefined || vH !== undefined) ? (vN || 0) + (vH || 0) : null;
+        const aN = pick(nq.averageSalePrice, 'price'), aH = pick(hq.averageSalePrice, 'price');
+        let avg = null;
+        if (aN !== undefined && aH !== undefined) { const wn = vN || 0, wh = vH || 0; avg = wn + wh > 0 ? (aN * wn + aH * wh) / (wn + wh) : (aN + aH) / 2; }
+        else if (aH !== undefined) avg = aH; else if (aN !== undefined) avg = aN;
+        const mN = minOf(nq.minListing), mH = minOf(hq.minListing);
+        const minL = mN !== undefined && mH !== undefined ? Math.min(mN, mH) : (mH ?? mN ?? null);
+        if (!vel || !avg) { out[item.itemId] = { vel, avg, minL, score: 0 }; continue; }
+        const ratio = minL != null ? Math.min(2, Math.max(0.25, minL / avg)) : 1;
+        out[item.itemId] = { vel, avg, minL, ratio, score: vel * avg * ratio };
+      }
+    }
+    Object.entries(out).filter(([, m]) => m.score > 0).sort((a, b) => b[1].score - a[1].score).forEach(([, m], k) => { m.rank = k + 1; });
+    return out;
+  }
+
+  async function loadPrices(force) {
+    const scope = state.srv;
+    const cacheKey = 'hist2.' + scope;
+    const cached = store.get(cacheKey, null);
+    if (!force && cached && Date.now() - cached.t < 10 * 60 * 1000) {
+      prices = cached.p; market = cached.m || {}; priceStatus = 'ok'; setPriceStatus(cached.t); render(); return;
+    }
+    priceStatus = 'loading'; setPriceStatus();
+    const marketJob = loadMarket(scope).then(m => { market = m; render(); }, () => { market = {}; });
+    const ids = Object.keys(ITEMS).filter(id => ITEMS[id].tw && !ITEMS[id].sc);
+    const batches = [];
+    for (let i = 0; i < ids.length; i += HIST_BATCH) batches.push(ids.slice(i, i + HIST_BATCH));
+    const next = {};
+    let failed = 0, lastErr;
+    const sc = encodeURIComponent(scope);
+    async function runBatch(chunk) {
+      const url = `https://universalis.app/api/v2/history/${sc}/${chunk.join(',')}?entriesToReturn=20&entriesWithin=${365 * 24 * 3600}`;
+      try {
+        const json = await fetchJson(url);
+        // 多筆查詢回傳 {items: {id: {...}}}，單筆查詢直接回傳該物品
+        const byId = !json ? {} : json.items ? json.items : { [json.itemID]: json };
+        for (const id of chunk) {
+          const it = byId[id];
+          next[id] = it ? recentAverage((it.entries || []).filter(s => !EXCLUDED_WORLDS.has(s.worldID))) : null;
+        }
+      } catch (e) {
+        failed += chunk.length; lastErr = e;
+        for (const id of chunk) next[id] = undefined;
+      }
+    }
+    const queue = [...batches];
+    await Promise.all(Array.from({ length: HIST_CONCURRENCY }, async () => {
+      while (queue.length) { await runBatch(queue.shift()); prices = { ...next }; render(); }
+    }));
+    prices = next;
+    await marketJob;
+    if (failed === ids.length) { priceStatus = 'error'; setPriceStatus(null, lastErr); }
+    else {
+      priceStatus = 'ok';
+      const t = Date.now();
+      if (!failed) store.set(cacheKey, { t, p: next, m: market });
+      setPriceStatus(t, failed ? lastErr : null, failed);
+    }
+    render();
+  }
+  function setPriceStatus(t, err, failed) {
+    const el = $('#st-price');
+    if (priceStatus === 'loading') el.textContent = `正在讀取「${state.srv}」市場價格…`;
+    else if (priceStatus === 'error') el.textContent = `無法連線 Universalis（${err?.message || '網路錯誤'}），請稍後按「重新整理價格」。`;
+    else {
+      const all = Object.values(prices), ok = all.filter(Boolean).length;
+      el.textContent = `價格：${state.srv}，${ok}／${all.length} 項有成交紀錄${failed ? `，${failed} 項讀取失敗（${err?.message || '網路錯誤'}）` : ''}，更新於 ${new Date(t).toLocaleTimeString('zh-TW', { hour12: false })}`;
+    }
+  }
+
+  // ---------- 篩選與渲染 ----------
+  function matches(n) {
+    if (state.job !== 'ALL' && n.job !== state.job) return false;
+    if (!state.exps.has(n.exp)) return false;
+    if (!state.kinds.has(n.kind)) return false;
+    if (state.q) {
+      const hay = [n.region, n.zone, n.ae, ...n.items.map(i => ITEMS[i].n)].join(' ');
+      if (!state.q.split(/\s+/).every(w => hay.includes(w))) return false;
+    }
+    return true;
+  }
+  const nodePrice = n => Math.max(0, ...n.items.map(i => prices[i]?.avg || 0));
+  const nodeScore = n => Math.max(0, ...n.items.map(i => market[i]?.score || 0));
+  const isMarked = i => state.marks.has(String(i));
+  const nodeMarked = n => n.items.some(isMarked);
+  // 規劃用價值：標記的素材永遠優先，其次是賣出划算度
+  const itemVal = i => (isMarked(i) ? 1e15 : 0) + (market[i]?.score || 0);
+  const nodeVal = n => Math.max(0, ...n.items.map(itemVal));
+  const bestItem = n => n.items.reduce((a, b) => itemVal(b) > itemVal(a) ? b : a);
+  const itemLabel = i => `${isMarked(i) ? '★' : ''}${esc(ITEMS[i].n)}${market[i]?.rank ? `（#${market[i].rank}）` : ''}`;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const gil = v => v.toLocaleString('zh-TW');
+
+  function priceHtml(id) {
+    const it = ITEMS[id];
+    const label = `<span class="lab" title="${esc(it.n)}">${esc(it.n)}</span>`;
+    if (!it.tw) return `<div class="price">${label}<span class="v"><small>台服未實裝</small></span></div>`;
+    if (it.sc) return `<div class="price" title="收藏品不能上市場；最高評價交貨一個可換的工票">${label}<span class="v">${it.sc.n} <small>${esc(it.sc.cur)}</small></span><span class="sub">最多可換工票</span></div>`;
+    if (id in prices && prices[id] === undefined) return `<div class="price">${label}<span class="v"><small>讀取失敗</small></span></div>`;
+    if (!(id in prices)) return `<div class="price">${label}<span class="v"><small>讀取中</small></span></div>`;
+    const p = prices[id];
+    if (!p) return `<div class="price">${label}<span class="v"><small>無成交紀錄</small></span></div>`;
+    const m = market[id];
+    const rk = m?.rank ? `<span class="sub rank" title="賣出划算度 = 日均銷量 × 平均成交價 × 行情係數">划算度 #${m.rank}・日銷 ${m.vel.toFixed(1)}</span>` : '';
+    return `<div class="price" title="最近 ${p.n} 筆成交的平均單價">${label}<span class="v">${gil(p.avg)} <small>gil</small></span>${rk}</div>`;
+  }
+
+  function nodeHtml(n, plan) {
+    const items = n.items.map(i => {
+      const it = ITEMS[i];
+      const mk = isMarked(i);
+      return `<div class="item${mk ? ' marked' : ''}"><button class="star" type="button" data-mark="${i}" aria-pressed="${mk}" title="${mk ? '取消標記' : '標記為重要素材'}">★</button><img src="${ICON(it.ic)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span class="nm" data-copy="${esc(it.n)}" title="點擊複製">${esc(it.n)}</span>${it.tw ? '' : '<span class="na">台服未實裝</span>'}</div>`;
+    }).join('');
+    const sub = n.zone && n.zone !== n.region ? `・${esc(n.zone)}` : '';
+    const si = plan ? plan.stops.findIndex(s => s.n === n) : -1;
+    const stop = si >= 0 ? plan.stops[si] : null;
+    return `<article class="node ${n.job}${stop?.use ? ' target' : ''}${stop ? ' onroute' : ''}">
+      <div class="items">${items}</div>
+      <div class="meta">
+        <span class="tag ${n.job}">${n.job === 'MIN' ? '採礦' : '園藝'} Lv${n.lv}</span>
+        <span class="tag ${n.kind}">${KIND_NAME[n.kind]}</span>${stop ? `<span class="tag route-no">路線 ${si + 1}</span>` : ''}${stop?.use ? '<span class="tag leg">⚡ 用 GP</span>' : ''}
+        <span>${esc(n.region)}${sub} <span class="coord">(${n.x.toFixed(1)}, ${n.y.toFixed(1)})</span></span>
+        <span class="ae" title="最近的以太之光">${esc(n.ae || '—')}</span>
+      </div>
+      <div class="prices">${n.items.map(priceHtml).join('')}</div>
+    </article>`;
+  }
+
+  // ---------- 傳送費估計（遊戲依距離計費；這裡用地區層級估算） ----------
+  // 同地圖 0（騎乘）、同地區、同大陸、跨大陸
+  const CONTINENT = { 22: 'E', 23: 'E', 24: 'E', 25: 'E', 497: 'E', 498: 'E', 2400: 'O', 2401: 'O', 2950: 'N', 3702: 'I', 3703: 'I', 3704: 'I', 3705: 'I', 4500: 'T', 4501: 'T', 4502: 'T' };
+  const TP_COST = { region: 200, continent: 400, far: 700 };
+  function tpCost(from, to) {
+    if (!from) return 0;                         // 路線起點不計
+    if (from.map === to.map) return 0;
+    if (from.reg === to.reg) return TP_COST.region;
+    if (CONTINENT[from.reg] && CONTINENT[from.reg] === CONTINENT[to.reg]) return TP_COST.continent;
+    return TP_COST.far;
+  }
+  // 依序走完 stops 的總傳送費
+  const pathCost = (start, stops) => stops.reduce((a, n, j) => a + tpCost(j ? stops[j - 1] : start, n), 0);
+  // 找出傳送費最低的走訪順序（點數少時窮舉，多時用最近鄰）
+  function bestOrder(start, nodes) {
+    if (nodes.length <= 6) {
+      let best = nodes, bestC = Infinity;
+      const perm = (arr, rest) => {
+        if (!rest.length) { const c = pathCost(start, arr); if (c < bestC || (c === bestC && nodeVal(arr[0]) > nodeVal(best[0]))) { bestC = c; best = arr; } return; }
+        rest.forEach((n, j) => perm([...arr, n], rest.filter((_, k) => k !== j)));
+      };
+      perm([], nodes);
+      return best;
+    }
+    const out = [], left = [...nodes];
+    let cur = start;
+    while (left.length) {
+      left.sort((a, b) => tpCost(cur, a) - tpCost(cur, b) || nodeVal(b) - nodeVal(a));
+      cur = left.shift(); out.push(cur);
+    }
+    return out;
+  }
+  // 素材賣得動嗎：標記的一律算；否則看日銷是否達門檻
+  const sellsWell = n => nodeMarked(n) || (market[bestItem(n)]?.vel || 0) >= state.gp.velMin;
+
+  // ---------- 路線：銷量好的挑划算度最高的點；銷量差的名額改挑傳送費最省的點 ----------
+  function pickStops(nodes, prev, N) {
+    const good = nodes.filter(n => nodeVal(n) > 0 && sellsWell(n)).sort((x, y) => nodeVal(y) - nodeVal(x));
+    const chosen = good.slice(0, N);
+    const weak = [];
+    const pool = nodes.filter(n => !chosen.includes(n));
+    while (chosen.length + weak.length < N && pool.length) {
+      // 加入後整條路線傳送費增加最少的點；同費用時取划算度高的
+      const base = [...chosen, ...weak];
+      let pick = null, pickC = Infinity;
+      for (const n of pool) {
+        const c = pathCost(prev, bestOrder(prev, [...base, n]));
+        if (c < pickC || (c === pickC && nodeVal(n) > nodeVal(pick))) { pick = n; pickC = c; }
+      }
+      weak.push(pick); pool.splice(pool.indexOf(pick), 1);
+    }
+    const stops = bestOrder(prev, [...chosen, ...weak]);
+    return { stops, weak: new Set(weak) };
+  }
+
+  // ---------- GP 規劃：在整條路線上用動態規劃挑出總划算度最高的用 GP 採集點 ----------
+  // GP 依時間回復：每一站的時間點 = 時段開始 + 站序 × (時段長 / 站數)
+  function assignGP(bands) {
+    const { max, cost, regen } = state.gp;
+    const STEP = 10, M = Math.max(0, Math.floor(max / STEP));
+    const C = Math.max(1, Math.round(cost / STEP));
+    const seq = [];
+    bands.forEach(b => b.stops.forEach((s, j) => seq.push({ s, t: b.off + j * b.gapH / b.stops.length })));
+    const K = seq.length;
+    const R = k => k + 1 < K ? Math.round(regen / STEP * (seq[k + 1].t - seq[k].t) / 2) : 0;
+    const f = Array.from({ length: K + 1 }, () => new Float64Array(M + 1));
+    const use = Array.from({ length: K }, () => new Uint8Array(M + 1));
+    for (let k = K - 1; k >= 0; k--) for (let g = 0; g <= M; g++) {
+      const r = R(k);
+      const skip = f[k + 1][Math.min(M, g + r)];
+      let v = skip;
+      if (g >= C && seq[k].s.val > 0) {
+        const u = seq[k].s.val + f[k + 1][Math.min(M, g - C + r)];
+        if (u > skip) { v = u; use[k][g] = 1; }
+      }
+      f[k][g] = v;
+    }
+    let g = Math.min(M, Math.max(0, Math.floor(state.gp.now / STEP)));
+    for (let k = 0; k < K; k++) {
+      seq[k].s.use = !!use[k][g];
+      g = Math.min(M, (seq[k].s.use ? g - C : g) + R(k));
+    }
+  }
+
+  function buildPlan(arr) {
+    const N = Math.max(1, Math.min(8, Math.round(state.gp.stops) || 1));
+    let prev = null;
+    const t0 = arr[0]?.start || 0;
+    const bands = arr.map((b, k) => {
+      // 採集點數依到下一個時段的間隔換算（設定值以 2 ET 小時為準），1 小時的時段就少排一些
+      const gapH = arr.length > 1 ? ((arr[(k + 1) % arr.length].h - b.h + 24) % 24 || 24) : 2;
+      const r = pickStops(b.nodes, prev, Math.max(1, Math.round(N * Math.min(gapH, 2) / 2)));
+      if (r.stops.length) prev = r.stops[r.stops.length - 1];
+      return {
+        h: b.h, start: b.start, end: b.start + Math.min(gapH, 2) * 3600000 / ET_RATIO,
+        off: (b.start - t0) * ET_RATIO / 3600000, gapH: Math.min(gapH, 2),
+        stops: r.stops.map(n => ({ n, item: bestItem(n), val: nodeVal(n), weak: r.weak.has(n), use: false })),
+      };
+    });
+    // 連續時段都要用 GP 時：前一段把 GP 點排最前、後一段排最後，拉開兩次使用的間隔
+    for (let pass = 0; pass < 3; pass++) {
+      assignGP(bands);
+      let prevUsed = false, from = null;
+      for (const b of bands) {
+        const gp = b.stops.filter(s => s.use), rest = b.stops.filter(s => !s.use);
+        if (gp.length && prevUsed) {
+          const r = bestOrder(from, rest.map(s => s.n)).map(n => rest.find(s => s.n === n));
+          b.stops = [...r, ...gp]; b.gpPos = 'last';
+        } else if (gp.length) {
+          const tail = bestOrder(gp[gp.length - 1].n, rest.map(s => s.n)).map(n => rest.find(s => s.n === n));
+          b.stops = [...gp, ...tail]; b.gpPos = 'first';
+        } else {
+          b.stops = bestOrder(from, rest.map(s => s.n)).map(n => rest.find(s => s.n === n)); b.gpPos = null;
+        }
+        prevUsed = gp.length > 0;
+        if (b.stops.length) from = b.stops[b.stops.length - 1].n;
+      }
+    }
+    return finishPlan(bands);
+  }
+
+  // 依最終順序算出每一站的傳送方式與費用
+  function finishPlan(bands) {
+    let prev = null, fee = 0, tps = 0;
+    for (const b of bands) {
+      for (const s of b.stops) {
+        s.cost = tpCost(prev, s.n);
+        s.same = !!prev && prev.map === s.n.map;
+        if (!s.same) tps++;
+        fee += s.cost; prev = s.n;
+      }
+      b.gp = b.stops.filter(s => s.use);
+      b.val = Math.max(0, ...b.stops.map(s => s.val));
+    }
+    return { bands, fee, tps };
+  }
+
+  // ---------- 固定路線：按「開始」後存下來，照名單一路往下走 ----------
+  let frozen = store.get('route', null);   // {t, bands:[{h,start,end,stops:[{id,item,use,weak,done}]}]}
+  function freeze(plan) {
+    const now = Date.now();
+    frozen = { t: now, bands: plan.bands.filter(b => b.stops.length && b.end > now).map(b => ({
+      h: b.h, start: b.start, end: b.end, gpPos: b.gpPos,
+      stops: b.stops.map(s => ({ id: s.n.id, item: s.item, use: s.use, weak: s.weak, done: false })),
+    })) };
+    store.set('route', frozen);
+  }
+  function thawPlan() {
+    const byId = new Map(NODES.map(n => [n.id, n]));
+    const bands = frozen.bands.map(b => ({ ...b, stops: b.stops.map(s => ({ ...s, n: byId.get(s.id), val: itemVal(s.item) })).filter(s => s.n) }));
+    return finishPlan(bands);
+  }
+
+  function renderRoute(plan) {
+    const now = Date.now();
+    const tpCount = {};
+    let k0 = -1;
+    const rows = plan.bands.map((b, bi) => {
+      if (!b.stops.length) return '';
+      const past = frozen && b.end <= now, cur = frozen && b.start <= now && now < b.end;
+      if (frozen && !past && k0 < 0) k0 = bi;
+      const li = b.stops.map((s, j) => {
+        if (!s.same && !s.n.aeShard) tpCount[s.n.ae] = (tpCount[s.n.ae] || 0) + s.cost;
+        const mv = s.same ? '同地圖，騎乘前往' : `傳送 ▸ ${esc(s.n.ae)}${s.cost ? `（約 ${s.cost} gil）` : ''}`;
+        const chk = frozen ? `<input type="checkbox" class="done" data-done="${bi}.${j}" ${s.done ? 'checked' : ''} aria-label="完成">` : '';
+        const label = `${j + 1}. ${itemLabel(s.item)}・${esc(s.n.region)}`;
+        return `<li class="${s.weak ? 'weak' : ''}${s.done ? ' done' : ''}"><span class="t">${j === 0 ? `ET ${pad(b.h)}:00` : ''}</span><span class="gp">${s.use ? '<span class="gp-pill use">用 GP</span>' : ''}</span><span>${chk}${label}${s.weak ? '<small class="why">銷量低，改選傳送費最省的點</small>' : ''}${s.use && b.gpPos === 'last' ? '<small class="why">上一時段剛用過 GP，排在最後讓 GP 回復</small>' : ''}</span><span class="mv${s.same ? '' : ' tp'}">${mv}</span></li>`;
+      }).join('');
+      return `<ol class="route band-route${past ? ' past' : ''}${cur ? ' cur' : ''}">${li}</ol>`;
+    });
+    const live = rows.filter(Boolean);
+    const SHOW = 3;
+    // 固定路線：從目前（第一個還沒結束的）時段開始顯示
+    const startIdx = frozen ? Math.max(0, rows.slice(0, Math.max(0, k0)).filter(Boolean).length) : 0;
+    const head = live.slice(startIdx, startIdx + SHOW), more = [...live.slice(0, startIdx), ...live.slice(startIdx + SHOW)];
+    const stopsTotal = plan.bands.reduce((a, b) => a + b.stops.length, 0);
+    const fav = Object.entries(tpCount).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const favSave = fav.reduce((a, [, c]) => a + c / 2, 0);
+    const warn = state.gp.cost > state.gp.max ? '<p class="gp-note">每次用量大於 GP 上限，目前不會安排任何用 GP 的採集點，請調整數值。</p>' : '';
+    const finished = frozen && k0 < 0;
+    const ctl = frozen
+      ? `<div class="route-ctl"><span class="route-state">路線進行中・${new Date(frozen.t).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })} 開始${finished ? '・已走完' : ''}</span><button type="button" id="route-replan">重新規劃</button><button type="button" id="route-stop">結束路線</button></div>`
+      : `<div class="route-ctl"><span class="route-state">預覽：跟著時間自動更新</span><button type="button" id="route-start" class="primary">開始這條路線</button></div>`;
+    $('#route').innerHTML = live.length ? `${ctl}${warn}${finished ? '<p class="gp-note">這條路線已經走完，按「重新規劃」排下一輪。</p>' : ''}${head.join('')}
+      ${more.length ? `<details class="route-more"><summary>顯示完整一輪（另外 ${more.length} 個時段）</summary>${more.join('')}</details>` : ''}
+      <p class="route-sum">一輪 ${plan.bands.filter(b => b.stops.length).length} 個時段、${stopsTotal} 個採集點，傳送 ${plan.tps} 次，估計傳送費約 ${gil(plan.fee)} gil。${fav.length ? `建議設為最愛傳送點（傳送費半價，約可再省 ${gil(Math.round(favSave))} gil）：${fav.map(([a]) => esc(a)).join('、')}` : ''}</p>` : '<p class="plan-hint">市場資料讀到後才會排出路線。</p>';
+  }
+
+  let lastKey = '';
+  // 未知素材依賣出划算度排序取前 UNS_TOP 名；市場資料還沒到時先不顯示
+  function unsTopSet() {
+    const ids = [...new Set(NODES.filter(n => n.kind === 'uns').flatMap(n => n.items))]
+      .filter(i => market[i]?.score > 0)
+      .sort((a, b) => market[b].score - market[a].score);
+    return new Set(ids.slice(0, UNS_TOP));
+  }
+  // 依目前篩選，把採集點分到各 ET 時段（由近到遠），時段內依排序設定排好
+  function currentBands() {
+    const top = unsTopSet();
+    const list = NODES.filter(matches).flatMap(n => {
+      if (n.kind !== 'uns') return [n];
+      const items = n.items.filter(i => top.has(i) || isMarked(i));
+      return items.length ? [{ ...n, items }] : [];
+    });
+    const bands = new Map();
+    for (const n of list) for (const h of n.spawns) {
+      const w = windowFor(h, n.dur);
+      const key = h;
+      if (!bands.has(key)) bands.set(key, { h, start: w.start, end: w.end, nodes: [] });
+      const b = bands.get(key);
+      b.end = Math.max(b.end, w.end); b.start = Math.min(b.start, w.start);
+      b.nodes.push(n);
+    }
+    const arr = [...bands.values()].sort((a, b) => a.start - b.start);
+    arr.count = list.length;
+    const cmp = {
+      price: (x, y) => nodePrice(y) - nodePrice(x),
+      rank: (x, y) => nodeScore(y) - nodeScore(x),
+    }[state.sort] || ((x, y) => y.lv - x.lv || x.id - y.id);
+    for (const b of arr) b.nodes.sort((x, y) => nodeMarked(y) - nodeMarked(x) || cmp(x, y));
+    return arr;
+  }
+
+  function render() {
+    const curHour = Math.floor(etNow() / 3600000) % 24;
+    const now = Date.now();
+    const arr = currentBands();
+    $('#st-count').textContent = `${arr.count} 個採集點`;
+    if (!arr.length) { $('#list').innerHTML = '<p class="empty">沒有符合條件的採集點。試著放寬版本、職業或類型。</p>'; if (frozen) renderRoute(thawPlan()); return; }
+    const plan = frozen ? thawPlan() : buildPlan(arr);
+    renderRoute(plan);
+    // 時刻表的每個時段對應到路線上同一個 ET 時段（固定路線依開始時間比對）
+    const key = b => `${b.h}|${Math.round(b.start / 60000)}`;
+    const pm = new Map(plan.bands.map(b => [key(b), b]));
+    const empty = { stops: [], gp: [], val: 0 };
+    const plans = arr.map(b => pm.get(key(b)) || empty);
+    // 路線上的採集點依路線順序排在該時段最前面
+    arr.forEach((b, k) => {
+      const ids = plans[k].stops.map(s => s.n.id);
+      const on = ids.map(id => b.nodes.find(n => n.id === id)).filter(Boolean);
+      b.nodes = [...on, ...b.nodes.filter(n => !on.includes(n))];
+      plans[k] = { ...plans[k], stops: plans[k].stops.map(s => ({ ...s, n: b.nodes.find(n => n.id === s.n.id) || s.n })) };
+    });
+    const gpNote = k => {
+      const p = plans[k];
+      if (p.gp.length) return `<p class="gp-note"><b>⚡ 用 GP</b>這個時段把 GP 用在 ${p.gp.map(s => itemLabel(s.item)).join('、')}</p>`;
+      if (!p.val) return '';
+      const nx = plans.find((q, j) => j > k && q.gp?.length);
+      return nx ? `<p class="gp-note keep"><b>保留 GP</b>留給 ET ${pad(nx.h)}:00 的 ${itemLabel(nx.gp[0].item)}，划算度比這個時段高</p>` : '';
+    };
+    $('#list').innerHTML = arr.map((b, k) => {
+      const live = b.start <= now && now < b.end;
+      const pill = live ? `出現中・剩 <span data-end="${b.end}">${fmtDur(b.end - now)}</span>` : `<span data-start="${b.start}">${fmtDur(b.start - now)}</span> 後`;
+      return `<section class="band${live ? ' live' : ''}">
+        <div class="hour"><b>ET ${pad(b.h)}:00</b><span class="when">本地 ${fmtClock(new Date(b.start))}</span><span class="pill">${pill}</span>${plans[k].val ? `<span class="gp-pill${plans[k].gp.length ? ' use' : ''}">${plans[k].gp.length ? `用 GP ×${plans[k].gp.length}` : '保留 GP'}</span>` : ''}</div>
+        <div class="rows">${gpNote(k)}${b.nodes.map(n => nodeHtml(n, plans[k])).join('')}</div>
+      </section>`;
+    }).join('');
+    lastKey = curHour;
+  }
+
+  function tick() {
+    const et = etNow();
+    const h = Math.floor(et / 3600000) % 24, m = Math.floor(et / 60000) % 60;
+    $('#et').textContent = `${pad(h)}:${pad(m)}`;
+    const d = new Date();
+    $('#lt').textContent = `${fmtClock(d)}:${pad(d.getSeconds())}`;
+    const now = Date.now();
+    let needRender = h !== lastKey;
+    document.querySelectorAll('[data-end]').forEach(el => { const t = +el.dataset.end; if (t <= now) needRender = true; else el.textContent = fmtDur(t - now); });
+    document.querySelectorAll('[data-start]').forEach(el => { const t = +el.dataset.start; if (t <= now) needRender = true; else el.textContent = fmtDur(t - now); });
+    if (needRender) render();
+  }
+
+  // ---------- 控制項 ----------
+  const expBox = $('#f-exp');
+  for (const [k, label] of EXPS) {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.dataset.v = k; b.textContent = label; b.type = 'button';
+    expBox.appendChild(b);
+  }
+  function syncControls() {
+    document.querySelectorAll('#f-job .chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state.job));
+    document.querySelectorAll('#f-exp .chip').forEach(b => b.setAttribute('aria-pressed', state.exps.has(b.dataset.v)));
+    document.querySelectorAll('#f-kind .chip').forEach(b => b.setAttribute('aria-pressed', state.kinds.has(b.dataset.v)));
+    $('#f-sort').value = state.sort; $('#f-srv').value = state.srv;
+  }
+  $('#f-srv').innerHTML = SERVERS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  $('#f-job').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; state.job = b.dataset.v; store.set('job', state.job); syncControls(); render(); });
+  expBox.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const k = b.dataset.v;
+    // 全選時點一下 = 只看這個版本；否則切換
+    if (state.exps.size === EXPS.length) state.exps = new Set([k]);
+    else if (state.exps.has(k)) { state.exps.delete(k); if (!state.exps.size) state.exps = new Set(EXPS.map(e => e[0])); }
+    else state.exps.add(k);
+    store.set('exps', [...state.exps]); syncControls(); render();
+  });
+  $('#f-kind').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const k = b.dataset.v;
+    if (state.kinds.has(k)) { if (state.kinds.size > 1) state.kinds.delete(k); } else state.kinds.add(k);
+    store.set('kinds3', [...state.kinds]); syncControls(); render();
+  });
+  $('#f-sort').addEventListener('change', e => { state.sort = e.target.value; store.set('sort', state.sort); render(); });
+  $('#f-q').addEventListener('input', e => { state.q = e.target.value.trim(); render(); });
+  $('#f-srv').addEventListener('change', e => { state.srv = e.target.value; store.set('srv', state.srv); prices = {}; market = {}; loadPrices(); });
+  $('#refresh').addEventListener('click', () => loadPrices(true));
+  for (const k of ['now', 'max', 'cost', 'regen', 'stops', 'velMin']) {
+    const el = $('#gp-' + k);
+    el.value = state.gp[k];
+    el.addEventListener('change', () => { state.gp[k] = Math.max(0, +el.value || 0); store.set('gp', state.gp); render(); });
+  }
+
+  let toastTimer;
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1400); }
+  $('#route').addEventListener('click', e => {
+    const id = e.target.id;
+    if (id === 'route-start' || id === 'route-replan') {
+      frozen = null; render();                       // 先以目前資料重排，再固定
+      const arr = currentBands(); if (!arr.length) return;
+      freeze(buildPlan(arr)); toast('已固定路線，照名單往下走'); render();
+    } else if (id === 'route-stop') {
+      frozen = null; store.set('route', null); toast('已結束路線'); render();
+    }
+  });
+  $('#route').addEventListener('change', e => {
+    const el = e.target.closest('[data-done]'); if (!el || !frozen) return;
+    const [bi, j] = el.dataset.done.split('.').map(Number);
+    const fb = frozen.bands[bi]; if (fb?.stops[j]) { fb.stops[j].done = el.checked; store.set('route', frozen); render(); }
+  });
+  $('#list').addEventListener('click', e => {
+    const star = e.target.closest('[data-mark]');
+    if (star) {
+      const id = star.dataset.mark;
+      if (state.marks.has(id)) state.marks.delete(id); else state.marks.add(id);
+      store.set('marks', [...state.marks]);
+      toast(state.marks.has(id) ? `已標記「${ITEMS[id].n}」` : `已取消標記「${ITEMS[id].n}」`);
+      render(); return;
+    }
+    const el = e.target.closest('[data-copy]'); if (!el) return;
+    const text = el.dataset.copy;
+    navigator.clipboard?.writeText(text).then(() => toast(`已複製「${text}」`), () => {
+      const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('請按 Ctrl+C 複製');
+    });
+  });
+
+  syncControls();
+  render();
+  tick();
+  setInterval(tick, 1000);
+  loadPrices();
+})();
+</script>
+</body>
+</html>
