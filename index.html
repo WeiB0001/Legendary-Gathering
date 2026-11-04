@@ -520,7 +520,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
 </main>
 <footer class="wrap">
   <p>價格：最近 10 筆成交的平均單價（NQ／HQ 都算）。划算度排名沿用「繁中服 賣出划算度排行」的算法：日均銷量 × 平均成交價 × 行情係數（最低掛單 ÷ 平均成交價，限制在 0.25–2），在本頁所有素材中排名。「未知」只顯示未知採集點中賣出划算度前 20 名的素材（標記的素材一律顯示），市場資料讀到後才會出現。收藏品不能上市場，改標示最高評價時一個可換的工票數。「精選」是限時採集點，素材可以用「精選」換成靈砂；規劃時取素材與靈砂兩者較高的划算度。已排除停止營運的「拉姆」伺服器。傳說／未知只列出限時採集點獨有的素材。</p>
-  <p>路線：每個時段排「每 2 ET 小時採集點」個點（只隔 1 ET 小時的時段減半）。日銷達門檻（或標記 ★）的素材依賣出划算度挑最高的點；剩下的名額不看划算度，改挑加入後整條路線傳送費增加最少的點。最後窮舉走訪順序，取傳送費最低的走法。傳送費是估計值：同地圖騎乘 0、同地區約 200、同大陸約 400、跨大陸約 700 gil，實際以遊戲為準。GP 規劃：GP 依時間回復（每時段回復量按站與站之間的時間換算），在整條路線上挑出划算度總和最高的用 GP 採集點。連續兩個時段都要用 GP 時，前一段把用 GP 的點排在最前面、後一段排在最後面，讓中間有最長的回復時間。按「開始這條路線」後路線會固定，不再隨時間重排。把最常傳送的地點設為最愛傳送點，傳送費可以打對折。</p>
+  <p>路線：每個時段排「每 2 ET 小時採集點」個點（只隔 1 ET 小時的時段減半）。日銷達門檻（或標記 ★）的素材依賣出划算度挑最高的點；剩下的名額不看划算度，改挑加入後整條路線傳送費增加最少的點。最後窮舉走訪順序，取傳送費最低的走法。傳送費是估計值：同地圖騎乘 0、同地區約 200、同大陸約 400、跨大陸約 700 gil，實際以遊戲為準。GP 規劃：GP 依時間回復（每時段回復量按站與站之間的時間換算），在整條路線上挑出划算度總和最高的用 GP 採集點。每個時段的走訪順序會窮舉比較：先確保用 GP 的高價值點不前後相連（包含跨時段的交界），在這個前提下取傳送費最低的走法；兩個用 GP 的點之間也至少隔「GP 點最短間隔」。按「開始這條路線」後路線會固定，不再隨時間重排。把最常傳送的地點設為最愛傳送點，傳送費可以打對折。</p>
   <p>點素材名稱可複製。ET 1 小時 = 現實 2 分 55 秒。採集點與傳送點資料來自 FFXIV Teamcraft 與台服解包；價格來自 Universalis。只列出繁中服已開放的素材。</p>
 </footer>
 <nav class="m-nav" id="m-nav" aria-label="頁面">
@@ -898,6 +898,38 @@ footer p { max-width: 70ch; margin: .4em 0; }
     }
   }
 
+  // 時段內的走訪順序：先確保高價值（用 GP）的點不前後相連（含跨時段的交界），再取傳送費最低的走法
+  const ADJ_PENALTY = 1e6;
+  function orderScore(prevStop, order) {
+    let fee = 0, adj = 0, prev = prevStop;
+    for (const s of order) {
+      fee += tpCost(prev?.n || null, s.n);
+      if (prev?.use && s.use) adj++;
+      prev = s;
+    }
+    return adj * ADJ_PENALTY + fee;
+  }
+  function orderBand(prevStop, stops) {
+    if (stops.length <= 1) return stops;
+    if (stops.length <= 7) {
+      let best = stops, bestScore = Infinity;
+      const perm = (cur, rest) => {
+        if (!rest.length) { const sc = orderScore(prevStop, cur); if (sc < bestScore) { bestScore = sc; best = cur; } return; }
+        rest.forEach((s, j) => perm([...cur, s], rest.filter((_, k) => k !== j)));
+      };
+      perm([], stops);
+      return best;
+    }
+    // 點太多時用貪婪：每次挑「不與上一站連續高價值」且傳送費最低的下一站
+    const out = [], left = [...stops];
+    let prev = prevStop;
+    while (left.length) {
+      left.sort((a, b) => ((prev?.use && a.use) - (prev?.use && b.use)) || tpCost(prev?.n || null, a.n) - tpCost(prev?.n || null, b.n));
+      prev = left.shift(); out.push(prev);
+    }
+    return out;
+  }
+
   function buildPlan(arr) {
     const N = Math.max(1, Math.min(8, Math.round(state.gp.stops) || 1));
     let prev = null;
@@ -916,26 +948,11 @@ footer p { max-width: 70ch; margin: .4em 0; }
     // 連續時段都要用 GP 時：前一段把 GP 點排最前、後一段排最後，拉開兩次使用的間隔
     for (let pass = 0; pass < 3; pass++) {
       assignGP(bands);
-      let prevUsed = false, from = null;
+      let prevStop = null;
       for (const b of bands) {
-        const gp = b.stops.filter(s => s.use), rest = b.stops.filter(s => !s.use);
-        if (gp.length) {
-          // 用 GP 的點與一般點交錯排，不連續；上一時段用過 GP 就先走一般點，讓 GP 有時間回復
-          const r = bestOrder(from, rest.map(s => s.n)).map(n => rest.find(s => s.n === n));
-          const out = [];
-          let gi = 0, ri = 0, takeGp = !prevUsed;
-          while (gi < gp.length || ri < r.length) {
-            if (takeGp && gi < gp.length) out.push(gp[gi++]);
-            else if (ri < r.length) out.push(r[ri++]);
-            else out.push(gp[gi++]);
-            takeGp = !takeGp;
-          }
-          b.stops = out; b.gpPos = prevUsed ? 'last' : 'first';
-        } else {
-          b.stops = bestOrder(from, rest.map(s => s.n)).map(n => rest.find(s => s.n === n)); b.gpPos = null;
-        }
-        prevUsed = gp.length > 0;
-        if (b.stops.length) from = b.stops[b.stops.length - 1].n;
+        b.stops = orderBand(prevStop, b.stops);
+        b.gpPos = b.stops.some(s => s.use) ? (b.stops[0].use ? 'first' : 'later') : null;
+        if (b.stops.length) prevStop = b.stops[b.stops.length - 1];
       }
     }
     return finishPlan(bands);
