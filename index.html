@@ -1115,7 +1115,8 @@ footer p { max-width: 70ch; margin: .4em 0; }
     // 每站時間 = 移動緩衝（同地圖算一半）+ 採集時間，換算成 ET
     const gather = state.travel.gather * 1000 * ET_RATIO, buf = state.travel.buffer * 1000 * ET_RATIO;
     const t0 = etNow();
-    const occ = dmOccurrences(t0);
+    // 已採過的那一次出現不再排進路線
+    const occ = dmOccurrences(t0).filter(o => !isDone(doneKey(`D${o.n.id}`, o.s / ET_RATIO)));
     const rows = [];
     let t = t0, cur = null;
     const left = new Set(occ);
@@ -1214,10 +1215,11 @@ footer p { max-width: 70ch; margin: .4em 0; }
   function favBands(list) {
     const bands = new Map();
     for (const n of list) for (const h of n.spawns) {
-      const w = windowFor(h, n.dur);
-      if (!bands.has(h)) bands.set(h, { h, start: w.start, end: w.end, nodes: [] });
-      const b = bands.get(h);
-      b.start = Math.min(b.start, w.start); b.end = Math.max(b.end, w.end);
+      const w = windowFor(h, n.dur);   // 同上：依這一次出現分組，過期的點歸到下一輪
+      const key = `${h}|${Math.round(w.start / 60000)}`;
+      if (!bands.has(key)) bands.set(key, { h, start: w.start, end: w.end, nodes: [] });
+      const b = bands.get(key);
+      b.end = Math.max(b.end, w.end);
       b.nodes.push(n);
     }
     let prev = null;
@@ -1314,17 +1316,21 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const rows = plan.rows.map((r, j) => {
       const n = byId.get(r.id); if (!n) return null;
       if (!r.same) { tps++; fee += r.cost; if (!n.aeShard) tpCount[n.ae] = (tpCount[n.ae] || 0) + r.cost; }
-      const past = !!dmFrozen && (isDone(doneKey(`D${r.id}`, r.s / ET_RATIO)) || r.e <= etn);
+      const past = isDone(doneKey(`D${r.id}`, r.s / ET_RATIO)) || (!!dmFrozen && r.e <= etn);
       if (!past && firstOpen < 0) firstOpen = j;
       return { r, n, j, past };
     }).filter(Boolean);
+    if (!dmFrozen) {
+      for (const o of dmOccurrences(etn)) if (isDone(doneKey(`D${o.n.id}`, o.s / ET_RATIO)))
+        rows.unshift({ r: { id: o.n.id, s: o.s, e: o.e, t: o.s, finish: o.s, cost: 0, same: true, risk: '' }, n: o.n, j: -1, past: true });
+    }
     const etStr = et => `ET ${pad(Math.floor(et / ET_H) % 24)}:${pad(Math.floor(et / 60000) % 60)}`;
     // 每一站：版面比照傳說素材的採集點卡片
     const stopHtml = ({ r, n, j, past }) => {
       const now = r.s <= etn && etn < r.e && !past && j === firstOpen;
       const dk = doneKey(`D${n.id}`, r.s / ET_RATIO), slot = `${n.id}@${Math.floor(r.s / ET_H) % 24}`, fav = state.dmMarks.has(slot);
       return `<article class="node ${n.job} dm-card tappable${past ? ' past' : ''}${isDone(dk) ? ' is-done' : ''}${now ? ' target' : ''}" ${cardAttrs(dk)}>
-        <div class="items"><button class="star" type="button" data-dmmark="${slot}" aria-pressed="${fav}" title="${fav ? '取消收藏這個時段' : '收藏這個時段'}">★</button><span class="no">${j + 1}</span><div class="dm-title"><b>${esc(n.zone)}</b><small>${esc(n.main.join('、'))}</small></div></div>
+        <div class="items"><button class="star" type="button" data-dmmark="${slot}" aria-pressed="${fav}" title="${fav ? '取消收藏這個時段' : '收藏這個時段'}">★</button><span class="no">${j >= 0 ? j + 1 : '✓'}</span><div class="dm-title"><b>${esc(n.zone)}</b><small>${esc(n.main.join('、'))}</small></div></div>
         <div class="meta">
           ${doneTag(dk)}${jobTag(n)}<span class="tag uns">Lv${n.lv}</span>${r.risk === 'tight' ? `<span class="tag risk" title="預計 ET ${pad(Math.floor(r.finish / ET_H) % 24)}:${pad(Math.floor(r.finish / 60000) % 60)} 採完，離消失不到一次移動時間">⚠ 時間緊</span>` : ''}
           <span>${esc(n.region)} <span class="coord">(${n.x.toFixed(1)}, ${n.y.toFixed(1)})</span></span>
@@ -1355,10 +1361,10 @@ footer p { max-width: 70ch; margin: .4em 0; }
       return out.map(g => g.items);
     };
     // 下一站：大卡片＋展開的地圖
-    const nx = rows.find(x => x.j === firstOpen) || (!dmFrozen && rows[0]);
-    $('#dm-next').innerHTML = nx ? `<div class="next-card">
+    const nx = rows.find(x => x.j === firstOpen && x.j >= 0);
+    $('#dm-next').innerHTML = nx ? `<div class="next-card tappable" data-nextkey="${doneKey(`D${nx.n.id}`, nx.r.s / ET_RATIO)}" tabindex="0" title="點一下標記為已採過，換下一站">
         <div>
-          <span class="eyebrow">下一站・第 ${nx.j + 1} 站</span>
+          <span class="eyebrow">下一站・第 ${nx.j + 1} 站・點這張卡片表示採完</span>
           <h3>${esc(nx.n.zone)}</h3>
           <div class="where">${jobTag(nx.n)}<span>${esc(nx.n.region)}</span><span class="coord">X ${nx.n.x.toFixed(1)}・Y ${nx.n.y.toFixed(1)}</span>${moveHtml(nx.r, nx.n)}</div>
           <div class="mats">${esc(nx.n.main.join('、'))}</div>
@@ -1370,10 +1376,10 @@ footer p { max-width: 70ch; margin: .4em 0; }
     $('#dm-ctl').innerHTML = dmFrozen
       ? `<span class="route-state">路線進行中・${new Date(dmFrozen.t).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })} 開始</span><button type="button" id="dm-replan">重新規劃</button><button type="button" id="dm-stop">結束路線</button>`
       : `<span class="route-state">預覽・跟著時間自動更新</span><button type="button" id="dm-start" class="primary">開始這條路線</button>`;
-    const from = Math.max(0, rows.findIndex(x => x.j === firstOpen));
-    const done = firstOpen < 0 && dmFrozen ? rows : rows.slice(0, from), todo = firstOpen < 0 && dmFrozen ? [] : rows.slice(from);
+    // 已採過或已消失的站收進「已過」，其餘照路線順序列出
+    const done = rows.filter(x => x.past), todo = rows.filter(x => !x.past);
     $('#dm-list').innerHTML = groupByHour(todo).map(bandHtml).join('');
-    $('#dm-more').innerHTML = done.length ? `<details class="route-more"><summary>已過的 ${done.length} 站</summary>${groupByHour(done).map(bandHtml).join('')}</details>` : '';
+    $('#dm-more').innerHTML = done.length ? `<details class="route-more"><summary>已採過／已過的 ${done.length} 站</summary>${groupByHour(done).map(bandHtml).join('')}</details>` : '';
     const fav = Object.entries(tpCount).sort((a, b) => b[1] - a[1]).slice(0, 3);
     $('#dm-sum').innerHTML = `接下來 24 ET 小時（約現實 70 分鐘）可採 <b>${plan.rows.length}</b> 個點，傳送 ${tps} 次，估計傳送費約 <b>${gil(fee)}</b> gil。${fav.length ? `建議設為最愛傳送點：${fav.map(([a]) => esc(a)).join('、')}` : ''}`;
     // 全部採集點出現時間
@@ -1399,11 +1405,13 @@ footer p { max-width: 70ch; margin: .4em 0; }
     });
     const bands = new Map();
     for (const n of list) for (const h of n.spawns) {
+      // 以「這一次出現」分組：同一個 ET 整點但已經消失的點（windowFor 會給下一輪）會分到下一輪的時段，
+      // 不會和還在出現的點混在一起，讓過期的時段一直留在最上面
       const w = windowFor(h, n.dur);
-      const key = h;
+      const key = `${h}|${Math.round(w.start / 60000)}`;
       if (!bands.has(key)) bands.set(key, { h, start: w.start, end: w.end, nodes: [] });
       const b = bands.get(key);
-      b.end = Math.max(b.end, w.end); b.start = Math.min(b.start, w.start);
+      b.end = Math.max(b.end, w.end);
       b.nodes.push(n);
     }
     const arr = [...bands.values()].sort((a, b) => a.start - b.start);
