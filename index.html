@@ -4,7 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>傳說採集時刻表</title>
+<meta name="description" content="FFXIV 繁中服採礦工／園藝工的傳說、未知、收藏品採集點 ET 時刻表：市場價格、賣出划算度、路線規劃與出現提醒。">
+<meta name="theme-color" id="theme-color" content="#fdfcf9">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23a37316'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M18 7c4 0 7.5 2.5 9 6.5-4-2.6-8-2.6-12 0'/%3E%3Cpath d='M18 7c-1.3 4-1.3 8 1.3 12'/%3E%3Cpath d='M15.5 13.5 5 26'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://universalis.app" crossorigin>
+<link rel="preconnect" href="https://xivapi.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&family=JetBrains+Mono:wght@500&display=swap">
 <style>
 /* Layout: sticky control deck (ET clock + filters) over a vertical 24h ET timeline; each ET hour is a band of node rows. */
@@ -109,7 +115,7 @@ main { padding-block: 18px 60px; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
 .tab { border: 0; background: none; padding: 6px 14px; cursor: pointer; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; }
 .tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--gold); }
-body:not(.mode-leg) .leg-only, body:not(.mode-dm) .dm-only, body:not(.mode-fav) .fav-only, body:not(.mode-dex) .dex-only, body:not(.mode-leg):not(.mode-dex) .f-leg { display: none !important; }
+body:not(.mode-leg) .leg-only, body:not(.mode-dm) .dm-only, body:not(.mode-fav) .fav-only, body:not(.mode-dex) .dex-only, body:not(.mode-set) .set-only, body:not(.mode-leg):not(.mode-dex) .f-leg { display: none !important; }
 .dm-page { padding-block: 18px 48px; display: grid; gap: 14px; }
 .dm-hero { display: flex; flex-wrap: wrap; gap: 14px 32px; justify-content: space-between; align-items: flex-end; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .dm-intro { display: grid; gap: 4px; max-width: 62ch; min-width: 0; }
@@ -155,20 +161,6 @@ body:not(.mode-leg) .leg-only, body:not(.mode-dm) .dm-only, body:not(.mode-fav) 
 .arrive small, .next-at small { font-size: .72rem; color: var(--muted); font-family: var(--font-mono); }
 .next-at { justify-items: start; margin-bottom: 10px; }
 .next-at b { font-size: 1.5rem; }
-.stops { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.stop { display: grid; grid-template-columns: 4.8em minmax(0, 1fr); gap: 4px 14px; align-items: start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
-.stop.now { border-color: var(--live); box-shadow: 0 0 0 1px var(--live); }
-.stop.past { opacity: .5; }
-.stop.done .stop-title b { text-decoration: line-through; color: var(--muted); }
-.stop-time { display: grid; font-variant-numeric: tabular-nums; }
-.stop-time b { font: 500 1.05rem var(--font-mono); }
-.stop-time small { font-size: .72rem; color: var(--muted); font-family: var(--font-mono); }
-.stop-main { display: grid; gap: 4px; min-width: 0; }
-.stop-title { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
-.stop-title .no { display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--fg); color: var(--bg); font-size: .72rem; font-weight: 700; }
-.stop-title b { font-size: .98rem; }
-.stop-title .muted, .stop-sub { color: var(--muted); font-size: .8rem; }
-.stop-move { font-size: .78rem; margin-left: auto; }
 .move { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .move.tp { border-color: var(--min); color: var(--min); }
 /* 倒數量條 */
@@ -209,41 +201,20 @@ body:not(.mode-leg) .leg-only, body:not(.mode-dm) .dm-only, body:not(.mode-fav) 
 .leg-set[open] > summary { color: var(--fg); margin-bottom: 6px; }
 .leg-set .plan-hint { margin-top: 6px; }
 .leg-bar .route-sum { margin: 0; font-size: .8rem; color: var(--muted); }
-.planner { padding-block: 14px 0; }
-.planner > details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
-.planner > details > summary { cursor: pointer; font: 700 1rem var(--font-display); letter-spacing: .05em; }
 .plan-set { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: .82rem; color: var(--muted); }
 .plan-set label { display: flex; gap: 6px; align-items: center; }
 .plan-set input { width: 5.5em; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 2px 6px; font-variant-numeric: tabular-nums; }
 .plan-hint { margin: 8px 0 0; font-size: .75rem; color: var(--muted); }
-.route { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: .85rem; }
-.route li { display: grid; grid-template-columns: 5.4em 4.4em minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 4px 0; border-top: 1px dashed var(--line); }
-.route li.weak { color: var(--muted); }
-.route .why { display: block; font-size: .72rem; color: var(--muted); }
-.route .t, .route .gp-pill { white-space: nowrap; }
-.route .gp-pill { margin-top: 0; }
 .route-more summary { cursor: pointer; font-size: .8rem; color: var(--muted); margin-top: 6px; }
-.route .t { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.route .mv { font-size: .75rem; color: var(--muted); text-align: right; }
-.route .mv.tp { color: var(--min); }
-.band-route + .band-route { margin-top: 6px; }
-.band-route li:first-child { border-top: 1px solid var(--line); }
 .tag.route-no { background: var(--fg); color: var(--bg); }
-.route-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; font-size: .82rem; }
-.route-ctl .route-state { color: var(--muted); margin-right: auto; }
-.route-ctl button { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 3px 12px; cursor: pointer; }
-.route-ctl button.primary { background: var(--gold); border-color: var(--gold); color: var(--bg); font-weight: 700; }
-.band-route.past { opacity: .45; }
-.band-route.cur { background: var(--live-soft); border-radius: 6px; }
-.route li.done > span:nth-child(3) { text-decoration: line-through; color: var(--muted); }
-.route input.done { margin: 0 6px 0 0; vertical-align: -2px; }
 .route-sum { margin: 8px 0 0; font-size: .82rem; }
 .gp-pill { display: inline-block; margin-top: 6px; font-size: .72rem; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .gp-pill.use { background: var(--gold); border-color: var(--gold); color: var(--bg); font-weight: 700; }
 .node.target { outline: 2px solid var(--gold); outline-offset: -1px; }
 .node.tappable { cursor: pointer; transition: opacity .15s, border-color .15s; }
-.node.tappable:hover { border-color: var(--muted); }
-.tag.risk { background: var(--gold-soft); color: var(--warn); }
+.node.tappable:hover { border-top-color: var(--muted); border-right-color: var(--muted); border-bottom-color: var(--muted); }
+.tag.risk, .tag.reach.tight { background: var(--gold-soft); color: var(--warn); }
+.tag.reach.late { background: var(--min); color: var(--bg); }
 .tag.risk.late { background: var(--min-soft); color: var(--min); }
 .risk-sum { color: var(--warn); }
 .tag.done-tag { background: var(--live); color: var(--bg); }
@@ -256,16 +227,7 @@ body:not(.mode-leg) .leg-only, body:not(.mode-dm) .dm-only, body:not(.mode-fav) 
 .tag.sel { background: var(--live-soft); color: var(--live); }
 .tag.dm { background: var(--fg); color: var(--bg); }
 .price .sub.red { color: var(--live); }
-.dm-page > *, .fav-block > * { min-width: 0; }
-.fav-block { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
-.block-h { margin: 0; font: 700 1rem var(--font-display); letter-spacing: .04em; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
-.fav-block > summary.block-h { cursor: pointer; list-style: none; }
-.fav-block > summary.block-h::-webkit-details-marker { display: none; }
-.fav-block > summary.block-h::before { content: "▸"; color: var(--muted); font-size: .8em; }
-.fav-block[open] > summary.block-h::before { content: "▾"; }
-.fav-block:not([open]) { gap: 0; }
-.sb-note { color: var(--muted); font-size: .75rem; margin: 0; }
-.block-h small { font: .75rem var(--font-body); color: var(--muted); letter-spacing: 0; }
+.dm-page > * { min-width: 0; }
 .m-nav, .m-filter-btn { display: none; }
 /* ---------- 桌面版懸浮小卡視窗：整個視窗就是小卡，底色交給系統的霧面（Acrylic） ---------- */
 html.mini-app, html.mini-app body { background: transparent !important; height: 100%; overflow: hidden; }
@@ -281,45 +243,65 @@ html.mini-app .mini-grip { display: block; position: fixed; right: 0; bottom: 0;
 /* ---------- 精簡模式（Mini Mode）：半透明霧面、可拖曳、可縮放 ---------- */
 .mini-toggle { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 12px; font-size: .78rem; cursor: pointer; color: var(--muted); }
 .mini-toggle[aria-pressed="true"] { border-color: var(--live); color: var(--live); }
-.mini { --mini-alpha: .72; position: fixed; z-index: 30; left: 24px; top: 120px; width: 420px; height: 170px; min-width: 260px; min-height: 130px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+.mini { --mini-alpha: .72; position: fixed; z-index: 30; left: 24px; top: 120px; width: 440px; height: 200px; min-width: 280px; min-height: 130px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
   display: flex; flex-direction: column; resize: both; overflow: hidden; container-type: size;
   background: color-mix(in srgb, var(--panel) calc(var(--mini-alpha) * 100%), transparent);
   -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
   border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); border-radius: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .28); color: var(--fg); font-family: var(--font-body); }
-.mini-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px 12px; cursor: grab; user-select: none; touch-action: none; }
+.mini-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 2px 16px; cursor: grab; user-select: none; touch-action: none; }
 .mini-head:active { cursor: grabbing; }
-.mini-brand { display: flex; align-items: center; gap: 6px; font-size: clamp(.68rem, 3.4cqmin, .9rem); letter-spacing: .12em; color: var(--muted); white-space: nowrap; overflow: hidden; }
-.mini-brand svg { width: 1.2em; height: 1.2em; color: var(--gold); flex: none; }
-.mini-pill { margin-left: auto; font-size: clamp(.66rem, 3cqmin, .82rem); padding: 1px 9px; border-radius: 999px; background: var(--live-soft); color: var(--live); font-weight: 700; white-space: nowrap; }
+.mini-brand { display: flex; align-items: center; gap: 6px; font-size: clamp(10px, 2.6cqw, 12px); letter-spacing: .14em; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.mini-brand svg { width: 1.25em; height: 1.25em; color: var(--gold); flex: none; }
+.mini-pill { margin-left: auto; margin-right: 6px; font-size: clamp(10px, 2.6cqw, 12px); padding: 2px 10px; border-radius: 999px; background: var(--live-soft); color: var(--live); font-weight: 700; white-space: nowrap; }
 .mini-pill.wait { background: var(--gold-soft); color: var(--gold); }
+.mini-pill.rush { background: var(--min); color: var(--bg); }
 .mini-pill.idle { background: var(--bg); color: var(--muted); }
-.mini-btn { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 6px; font-size: .85rem; line-height: 1; }
+.mini-btn { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 3px 6px; border-radius: 6px; font-size: 13px; line-height: 1; transition: opacity .15s; }
 .mini-btn:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 10%, transparent); }
-.mini-set { display: none; gap: 10px; align-items: center; padding: 0 12px 4px; font-size: .72rem; color: var(--muted); flex-wrap: wrap; }
+/* 控制按鈕浮在右上角，平常隱藏，滑鼠移上去才出現（觸控裝置一律顯示在狀態標籤旁） */
+.mini-ctl { display: flex; gap: 2px; }
+@media (hover: hover) {
+  .mini-ctl { position: absolute; top: 6px; right: 8px; padding: 2px; border-radius: 8px; background: var(--panel); box-shadow: 0 2px 10px rgba(0, 0, 0, .18); opacity: 0; pointer-events: none; transition: opacity .15s; }
+  .mini:hover .mini-ctl, .mini:focus-within .mini-ctl { opacity: 1; pointer-events: auto; }
+}
+html.mini-app .mini-ctl { -webkit-app-region: no-drag; }
+.mini-set { display: none; gap: 12px; align-items: center; padding: 4px 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
 .mini.show-set .mini-set { display: flex; }
-.mini-set select { font-size: .72rem; padding: 1px 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.mini-set select { font-size: 12px; padding: 1px 4px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
 .mini-set input[type="range"] { width: 90px; }
-.mini-body { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto 1fr auto auto auto; gap: 2px 12px; padding: 2px 12px 10px; cursor: pointer; min-height: 0; }
-.mini-body:hover .mini-name { text-decoration: underline; text-decoration-color: var(--line); }
-.mini-body:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: 10px; }
-.mini-ico { grid-column: 1; grid-row: 1 / span 3; align-self: center; width: clamp(30px, 24cqmin, 72px); height: clamp(30px, 24cqmin, 72px); border-radius: 10px; background: color-mix(in srgb, var(--line) 60%, transparent); }
-.mini-eyebrow, .mini-name, .mini-place { grid-column: 2; }
-.mini-eyebrow { font-size: clamp(.64rem, 4.2cqmin, .9rem); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mini-name { font: 700 clamp(1rem, 13cqmin, 2.8rem)/1.15 var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: center; }
-.mini-place { font-size: clamp(.7rem, 5cqmin, 1.05rem); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mini-place svg { width: 1em; height: 1em; vertical-align: -2px; margin-right: 3px; }
-.mini-count { grid-column: 3; grid-row: 1 / span 3; display: grid; justify-items: end; align-content: center; }
-.mini-count b { font: 500 clamp(1.3rem, 17cqmin, 3.6rem)/1 var(--font-mono); color: var(--live); font-variant-numeric: tabular-nums; }
+.mini-body { flex: 1; display: flex; flex-direction: column; gap: clamp(4px, 2.4cqh, 10px); padding: 6px 16px 14px; cursor: pointer; min-height: 0; }
+.mini-body:focus-visible { outline: 2px solid var(--gold); outline-offset: -4px; border-radius: 12px; }
+.mini-main { flex: 1; display: flex; align-items: center; gap: clamp(10px, 3.4cqw, 18px); min-height: 0; }
+.mini-ico { flex: none; width: clamp(34px, 11cqw, 60px); height: clamp(34px, 11cqw, 60px); border-radius: 12px; background: color-mix(in srgb, var(--line) 55%, transparent); }
+.mini-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.mini-eyebrow { font-size: clamp(10px, 2.7cqw, 13px); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-name { font: 700 clamp(16px, 6.4cqw, 32px)/1.2 var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-body:hover .mini-name { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; text-decoration-color: var(--line); }
+.mini-count { flex: none; display: grid; justify-items: end; gap: 2px; }
+.mini-count b { font: 500 clamp(20px, 8cqw, 42px)/1 var(--font-mono); color: var(--live); font-variant-numeric: tabular-nums; }
 .mini-count.wait b { color: var(--gold); }
-.mini-count small { font-size: clamp(.62rem, 3cqmin, .8rem); color: var(--muted); }
-.mini-bar { grid-column: 1 / -1; height: clamp(5px, 2.6cqmin, 9px); border-radius: 999px; background: color-mix(in srgb, var(--line) 70%, transparent); overflow: hidden; margin-top: 6px; }
+.mini-count small { font-size: clamp(10px, 2.6cqw, 12px); color: var(--muted); }
+/* 傳送點：一行清楚的文字，不用外框 */
+.mini-route { display: flex; align-items: baseline; gap: 12px; font-size: clamp(12px, 3.3cqw, 16px); white-space: nowrap; min-width: 0; }
+.mini-tp { display: inline-flex; align-items: baseline; gap: .4em; color: var(--min); font-weight: 700; min-width: 0; flex: none; max-width: 100%; }
+.mini-tp svg { width: .95em; height: .95em; align-self: center; flex: none; }
+.mini-tp b { color: var(--fg); overflow: hidden; text-overflow: ellipsis; }
+.mini-tp em { font-style: normal; font-weight: 400; color: var(--muted); font-size: .85em; }
+.mini-tp.same { color: var(--live); }
+.mini-loc { margin-left: auto; color: var(--muted); font-size: .82em; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mini-xy { font-family: var(--font-mono); }
+.mini-bar { height: clamp(4px, 1.6cqw, 7px); border-radius: 999px; background: color-mix(in srgb, var(--line) 70%, transparent); overflow: hidden; flex: none; }
 .mini-bar i { display: block; height: 100%; background: var(--live); border-radius: inherit; }
-.mini-count.wait ~ .mini-bar i { background: var(--gold); }
-.mini-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; font-size: clamp(.66rem, 4.4cqmin, .95rem); margin-top: 6px; white-space: nowrap; }
+.mini-body.wait .mini-bar i { background: var(--gold); }
+.mini-foot { display: flex; justify-content: space-between; gap: 8px; font-size: clamp(11px, 2.9cqw, 14px); white-space: nowrap; flex: none; }
 .mini-gp { color: var(--gold); overflow: hidden; text-overflow: ellipsis; }
 .mini-gp svg { width: 1em; height: 1em; vertical-align: -2px; }
-.mini-step { color: var(--muted); }
-.mini-empty { grid-column: 1 / -1; align-self: center; color: var(--muted); font-size: .85rem; }
+.mini-step { color: var(--muted); margin-left: auto; }
+.mini-empty { margin: auto 0; color: var(--muted); font-size: .85rem; }
+/* 依小卡大小自動精簡：窄的先藏地區與傳送費，矮的先藏分類與底部列 */
+@container (max-width: 380px) { .mini-loc, .mini-tp em { display: none; } }
+@container (max-height: 175px) { .mini-eyebrow { display: none; } }
+@container (max-height: 145px) { .mini-foot { display: none; } }
 /* 彈出到桌面最上層的子母畫面視窗：視窗本身由作業系統繪製，無法透明，改用實色底 */
 body.pip-body { margin: 0; background: var(--panel); }
 .mini.mini-pip { position: static; width: 100vw; height: 100vh; max-width: none; max-height: none; resize: none; border: 0; border-radius: 0; box-shadow: none; background: var(--panel); }
@@ -372,6 +354,16 @@ body.mode-dex #f-exp { display: none !important; }
 .io-msg { font-size: .8rem; color: var(--muted); }
 .io-msg.ok { color: var(--live); }
 .io-msg.err { color: var(--min); }
+.set-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: grid; gap: 10px; min-width: 0; }
+.set-card h3 { margin: 0; font: 700 1rem var(--font-display); letter-spacing: .04em; }
+.set-card .plan-hint { margin: 0; max-width: 72ch; }
+.set-grid { display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.set-grid select { font-size: .85rem; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); max-width: 14em; }
+#set-theme .chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.set-rec { border-top: 1px dashed var(--line); padding-top: 10px; display: grid; gap: 8px; font-size: .85rem; }
+.set-rec ol { margin: 0; padding-left: 1.4em; display: grid; gap: 2px; }
+.set-rec small { color: var(--muted); }
+.set-rec button { justify-self: start; border: 1px solid var(--gold); background: var(--gold); color: var(--bg); font-weight: 700; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
 .fav-empty { background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; padding: 28px 18px; text-align: center; color: var(--muted); }
 .fav-empty b { display: block; color: var(--fg); font-size: 1.05rem; margin-bottom: 4px; }
 .gp-note { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--gold-soft); color: var(--fg); font-size: .85rem; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
@@ -380,18 +372,35 @@ body.mode-dex #f-exp { display: none !important; }
 .gp-note.keep b { color: var(--muted); }
 .price .sub.rank { color: var(--gold); font-weight: 700; }
 .empty { color: var(--muted); padding: 40px 0; text-align: center; }
-.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 6px 14px; border-radius: 8px; font-size: .85rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast { position: fixed; z-index: 50; max-width: calc(100vw - 32px); left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 6px 14px; border-radius: 8px; font-size: .85rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 footer { font-size: .75rem; color: var(--muted); padding-block: 0 40px; }
 footer p { max-width: 70ch; margin: .4em 0; }
+/* ---------- 新增功能用到的樣式：收藏數量、價格讀取進度、提醒設定、快捷鍵 ---------- */
+button:disabled { opacity: .5; cursor: default; }
+.badge { display: inline-block; min-width: 1.6em; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font: 500 .7rem/1.55 var(--font-mono); text-align: center; vertical-align: 1px; }
+.badge:empty { display: none; }
+.load-bar { position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--p, 0%); background: var(--gold); transition: width .3s; }
+.bar i { transition: width 1s linear; }
+.inc-warn { color: var(--warn); }
+.vip { margin-left: 4px; border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 0 9px; font-size: .72rem; line-height: 1.7; cursor: pointer; white-space: nowrap; }
+.vip:hover { border-color: var(--gold); color: var(--gold); }
+.vip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--bg); font-weight: 700; }
+.dex-filter input[type="search"] { width: 15em; }
+.set-check { display: flex; gap: 8px; align-items: center; font-size: .85rem; cursor: pointer; }
+.set-check input { width: 16px; height: 16px; accent-color: var(--gold); margin: 0; }
+.set-test { justify-self: start; border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: .82rem; }
+.set-test:hover { border-color: var(--muted); }
+kbd { font: 500 .7rem var(--font-mono); padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; background: var(--panel); color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { .bar i, .load-bar { transition: none; } }
 @media (max-width: 720px) {
-  .mini { left: 8px; width: calc(100vw - 16px); height: 150px; }
+  .mini { left: 8px; width: calc(100vw - 16px); height: 190px; }
   .mini-toggle { margin-left: auto; }
   .hero-side { justify-items: start; }
   /* ---- 手機版操作：只在窄螢幕生效，桌面版不變 ---- */
   body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   .tabs { display: none; }
-  .m-nav { display: grid; grid-template-columns: auto repeat(4, minmax(0, 1fr)); align-items: stretch; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--panel); border-top: 1px solid var(--line); padding: 6px max(10px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); gap: 6px; }
+  .m-nav { display: grid; grid-template-columns: auto repeat(5, minmax(0, 1fr)); align-items: stretch; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--panel); border-top: 1px solid var(--line); padding: 6px max(10px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); gap: 6px; }
   .m-clock { display: grid; place-content: center; padding: 0 8px; }
   .m-clock span { font-size: .6rem; color: var(--muted); letter-spacing: .1em; }
   .m-clock b { font: 500 1.05rem var(--font-mono); color: var(--gold); }
@@ -424,13 +433,9 @@ footer p { max-width: 70ch; margin: .4em 0; }
   .dex-filter { flex-direction: column; align-items: stretch; }
   .dm-price { justify-items: start; }
   .next-card { grid-template-columns: minmax(0, 1fr); }
-  .stop { grid-template-columns: 4.2em minmax(0, 1fr); }
-  .stop-move { margin-left: 0; }
   .arrive { justify-items: start; }
   .next-card .minimap { max-width: 260px; }
   .dm-ctl { margin-left: 0; }
-  .route li { grid-template-columns: 5.4em minmax(0, 1fr); }
-  .route li > :nth-child(n+2) { grid-column: 2; text-align: left; }
   .deck { position: static; }
   .band { grid-template-columns: minmax(0, 1fr); }
   .hour { position: static; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin-bottom: 8px; }
@@ -441,6 +446,9 @@ footer p { max-width: 70ch; margin: .4em 0; }
   .price { grid-template-columns: auto auto; }
   .price .lab, .price .v, .price .sub { text-align: left; }
   .clocks { margin-left: 0; }
+  .toast { bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+  .kbd-hint { display: none; }
+  .vip { padding: 2px 12px; font-size: .8rem; }
 }
 @keyframes ping { from { r: 2.2; opacity: .8; } to { r: 6; opacity: 0; } }
 .mm-ring { animation: ping 1.6s ease-out infinite; }
@@ -461,10 +469,11 @@ footer p { max-width: 70ch; margin: .4em 0; }
     <div class="tabs" id="f-mode" role="tablist">
       <button class="tab" type="button" role="tab" data-v="leg">傳說素材</button>
       <button class="tab" type="button" role="tab" data-v="dm">黑暗物質晶簇</button>
-      <button class="tab" type="button" role="tab" data-v="fav">★ 我的收藏</button>
+      <button class="tab" type="button" role="tab" data-v="fav">★ 我的收藏<span class="badge" id="fav-badge"></span></button>
       <button class="tab" type="button" role="tab" data-v="dex">圖鑑</button>
+      <button class="tab" type="button" role="tab" data-v="set">設定</button>
     </div>
-    <button type="button" class="m-filter-btn" id="m-filter-btn" aria-expanded="false">篩選與市場設定</button>
+    <button type="button" class="m-filter-btn" id="m-filter-btn" aria-expanded="false">篩選</button>
     <div class="filters" id="filters">
       <div class="group" id="f-job"><label class="cap">職業</label>
         <button class="chip" data-v="ALL" aria-pressed="true">全部</button>
@@ -478,14 +487,6 @@ footer p { max-width: 70ch; margin: .4em 0; }
         <button class="chip" type="button" data-v="col" title="收藏用素材，顯示最高可換的工票">收藏品</button>
         <button class="chip" type="button" data-v="sel" title="精選採集點（限時）：素材可用「精選」換成靈砂">精選</button>
       </div>
-      <div class="group f-leg">
-        <label class="cap" for="f-q">搜尋</label>
-        <input type="search" id="f-q" placeholder="素材／地區／傳送點">
-      </div>
-      <div class="group">
-        <label class="cap" for="f-srv">市場</label>
-        <select id="f-srv"></select>
-      </div>
       <div class="group leg-only">
         <label class="cap" for="f-sort">排序</label>
         <select id="f-sort">
@@ -497,14 +498,79 @@ footer p { max-width: 70ch; margin: .4em 0; }
     </div>
     <div class="status"><span id="st-count"></span><span id="st-price">正在讀取市場價格…</span><button id="refresh" type="button">重新整理價格</button></div>
   </div>
+  <i class="load-bar" id="load-bar" hidden></i>
 </header>
 <main class="wrap">
+  <section class="dm-page set-only" id="settings">
+    <div class="dm-hero">
+      <div class="dm-intro">
+        <span class="eyebrow">所有頁面共用</span>
+        <h2>設定</h2>
+      </div>
+    </div>
+    <section class="set-card">
+      <h3>外觀</h3>
+      <div class="group" id="set-theme" role="radiogroup" aria-label="深淺色">
+        <button class="chip" type="button" data-theme-v="auto">跟隨系統</button>
+        <button class="chip" type="button" data-theme-v="light">淺色</button>
+        <button class="chip" type="button" data-theme-v="dark">深色</button>
+      </div>
+    </section>
+    <section class="set-card">
+      <h3>市場</h3>
+      <div class="set-grid">
+        <label class="field" for="f-srv">價格來源 <select id="f-srv"></select></label>
+      </div>
+    </section>
+    <section class="set-card">
+      <h3>GP 與路線</h3>
+      <div class="set-grid">
+        <label class="field">目前 GP <input type="number" id="gp-now" min="0" step="10" inputmode="numeric"></label>
+        <label class="field">GP 上限 <input type="number" id="gp-max" min="0" step="10" inputmode="numeric"></label>
+        <label class="field">每次用量 <input type="number" id="gp-cost" min="0" step="10" inputmode="numeric"></label>
+        <label class="field">每時段回復 <input type="number" id="gp-regen" min="0" step="10" inputmode="numeric"></label>
+        <label class="field">每 2 ET 小時採集點 <input type="number" id="gp-stops" min="1" max="8" step="1" inputmode="numeric"></label>
+        <label class="field" title="日均銷量達到這個數字的素材才會依划算度優先排進路線">日銷門檻 <input type="number" id="gp-velMin" min="0" step="0.5" inputmode="decimal"></label>
+        <label class="field" title="兩個用 GP 的點之間至少隔這麼久（GP 回復、強心劑 CD）">GP 點最短間隔（秒） <input type="number" class="tr-in" data-k="gap" min="0" step="10" inputmode="numeric"></label>
+      </div>
+    </section>
+    <section class="set-card" id="set-alarm">
+      <h3>出現提醒</h3>
+      <p class="plan-hint">重新整理頁面後，要先點一下頁面才會有提示音。</p>
+      <label class="set-check"><input type="checkbox" data-alarm="on"> 收藏的素材出現前提醒</label>
+      <div class="set-grid">
+        <label class="field">提前（秒） <input type="number" data-alarm="lead" min="5" max="600" step="5" inputmode="numeric"></label>
+        <label class="set-check"><input type="checkbox" data-alarm="sound"> 提示音</label>
+        <label class="set-check"><input type="checkbox" data-alarm="notify"> 桌面通知</label>
+        <label class="set-check"><input type="checkbox" data-alarm="title"> 分頁標題顯示倒數</label>
+      </div>
+      <button type="button" class="set-test" id="alarm-test">測試提醒</button>
+    </section>
+    <section class="set-card">
+      <h3>移動時間</h3>
+      <div class="set-grid">
+        <label class="field">每點採集（秒） <input type="number" class="tr-in" data-k="gather" min="10" step="5" inputmode="numeric"></label>
+        <label class="field">傳送讀取（秒） <input type="number" class="tr-in" data-k="load" min="0" step="1" inputmode="numeric"></label>
+        <label class="field">飛行：每格座標 ET 分鐘 <input type="number" class="tr-in" data-k="fly" min="0.2" step="0.05" inputmode="decimal"></label>
+      </div>
+    </section>
+    <section class="set-card">
+      <h3>收藏點與返回點</h3>
+      <p class="plan-hint">收藏點傳送費半價，返回點免費。</p>
+      <div class="set-grid">
+        <label class="field">返回點 <select class="tpset" data-k="home"></select></label>
+        <label class="field">收藏點 1 <select class="tpset" data-k="fav0"></select></label>
+        <label class="field">收藏點 2 <select class="tpset" data-k="fav1"></select></label>
+        <label class="field">收藏點 3 <select class="tpset" data-k="fav2"></select></label>
+      </div>
+      <div class="set-rec" id="set-rec"></div>
+    </section>
+  </section>
   <section class="dm-page dex-only" id="dex">
     <div class="dm-hero">
       <div class="dm-intro">
         <span class="eyebrow">所有版本・24 ET 小時</span>
         <h2>圖鑑</h2>
-        <p>每一列是一個 ET 整點，每一欄是一個版本，列出這個整點開始出現的所有素材（含一般採集點也採得到的）。賣出划算度前 30 名會標出名次與均價，點 ★ 可直接收藏。版本、時間段在下方篩選；職業、類型、搜尋用上方的篩選。</p>
       </div>
       <div class="dm-price" id="dex-stat"></div>
     </div>
@@ -516,6 +582,10 @@ footer p { max-width: 70ch; margin: .4em 0; }
         <button class="chip" type="button" data-t="next6">接下來 6 ET 小時</button>
         <label class="field" for="dex-hour">指定 <select id="dex-hour"></select></label>
       </div>
+      <div class="group">
+        <label class="cap" for="f-q">搜尋</label>
+        <input type="search" id="f-q" placeholder="素材／地區／傳送點">
+      </div>
     </div>
     <div id="dex-grid"></div>
   </section>
@@ -524,7 +594,6 @@ footer p { max-width: 70ch; margin: .4em 0; }
       <div class="dm-intro">
         <span class="eyebrow">只看標記 ★ 的素材</span>
         <h2>我的收藏</h2>
-        <p>依 ET 時段排出收藏的出現順序，同一時段內排成傳送費最低的走法。傳說素材以物品收藏，黑暗物質晶簇以時段收藏；採過的點，點一下卡片就會變暗。</p>
       </div>
       <div class="hero-side">
         <div class="dm-price" id="fav-stat"></div>
@@ -540,14 +609,11 @@ footer p { max-width: 70ch; margin: .4em 0; }
       <div class="dm-intro">
         <span class="eyebrow">2.x 未知採集點・隱藏素材</span>
         <h2>黑暗物質晶簇</h2>
-        <p>時間以 ET 為主。路線依每個點的出現時間排：下一站從「已經出現、來得及在消失前採完」的點裡，挑傳送費最低的。每站時間 = 移動緩衝（同地圖算一半）＋採集時間，採完時離消失不到一次移動時間的標「⚠ 時間緊」。</p>
       </div>
       <div class="dm-price" id="dm-price"></div>
     </div>
     <div id="dm-next"></div>
     <div class="dm-toolbar">
-      <label class="field">每點採集（秒） <input type="number" class="tr-in" data-k="gather" min="10" step="5" inputmode="numeric"></label>
-      <label class="field">每次移動緩衝（秒） <input type="number" class="tr-in" data-k="buffer" min="0" step="5" inputmode="numeric"></label>
       <div id="dm-ctl" class="dm-ctl"></div>
     </div>
     <div id="dm-list" class="dm-list"></div>
@@ -560,40 +626,24 @@ footer p { max-width: 70ch; margin: .4em 0; }
   </section>
   <section class="leg-bar leg-only">
     <div id="route" class="dm-ctl leg-ctl"></div>
-    <details class="leg-set">
-      <summary>GP 與路線設定</summary>
-      <div class="plan-set">
-        <label class="field">目前 GP <input type="number" id="gp-now" min="0" step="10" inputmode="numeric"></label>
-        <label class="field">GP 上限 <input type="number" id="gp-max" min="0" step="10" inputmode="numeric"></label>
-        <label class="field">每次用量 <input type="number" id="gp-cost" min="0" step="10" inputmode="numeric"></label>
-        <label class="field">每時段回復 <input type="number" id="gp-regen" min="0" step="10" inputmode="numeric"></label>
-        <label class="field">每 2 ET 小時採集點 <input type="number" id="gp-stops" min="1" max="8" step="1" inputmode="numeric"></label>
-        <label class="field">日銷門檻 <input type="number" id="gp-velMin" min="0" step="0.5" inputmode="decimal"></label>
-        <label class="field">每點採集（秒） <input type="number" class="tr-in" data-k="gather" min="10" step="5" inputmode="numeric"></label>
-        <label class="field">每次移動緩衝（秒） <input type="number" class="tr-in" data-k="buffer" min="0" step="5" inputmode="numeric"></label>
-        <label class="field">GP 點最短間隔（秒） <input type="number" class="tr-in" data-k="gap" min="0" step="10" inputmode="numeric"></label>
-      </div>
-      <p class="plan-hint">路線時間以「每點採集＋每次移動緩衝（傳送讀取、騎乘、走到採集點；同地圖算一半）」推算，採完時已消失的點標「⚠ 可能來不及」，剩不到一次移動時間的標「⚠ 時間緊」。兩個用 GP 的點至少間隔「GP 點最短間隔」，預留 GP 回復與強心劑 CD，也不會連續排在一起。每個時段挑出要去的點，卡片上標「路線 1、2…」與傳送方式，金框是要用 GP 的點。按「開始這條路線」後路線固定，不再隨時間重排。路線以傳送費最低為主：日銷達門檻的素材挑划算度最高的點，銷量不好的名額改挑傳送費最省的點。標記 ★ 的素材一律視為重要。</p>
-    </details>
     <p class="route-sum" id="route-sum"></p>
   </section>
   <div id="list" class="leg-only"></div>
 </main>
 <footer class="wrap">
-  <p>價格：最近 10 筆成交的平均單價（NQ／HQ 都算）。划算度排名沿用「繁中服 賣出划算度排行」的算法：日均銷量 × 平均成交價 × 行情係數（最低掛單 ÷ 平均成交價，限制在 0.25–2），在本頁所有素材中排名。「未知」只顯示未知採集點中賣出划算度前 20 名的素材（標記的素材一律顯示），市場資料讀到後才會出現。收藏品不能上市場，改標示最高評價時一個可換的工票數。「精選」是限時採集點，素材可以用「精選」換成靈砂；規劃時取素材與靈砂兩者較高的划算度。已排除停止營運的「拉姆」伺服器。傳說／未知只列出限時採集點獨有的素材。</p>
-  <p>路線：每個時段排「每 2 ET 小時採集點」個點（只隔 1 ET 小時的時段減半）。日銷達門檻（或標記 ★）的素材依賣出划算度挑最高的點；剩下的名額不看划算度，改挑加入後整條路線傳送費增加最少的點。最後窮舉走訪順序，取傳送費最低的走法。傳送費是估計值：同地圖騎乘 0、同地區約 200、同大陸約 400、跨大陸約 700 gil，實際以遊戲為準。GP 規劃：GP 依時間回復（每時段回復量按站與站之間的時間換算），在整條路線上挑出划算度總和最高的用 GP 採集點。每個時段的走訪順序會窮舉比較：先確保用 GP 的高價值點不前後相連（包含跨時段的交界），在這個前提下取傳送費最低的走法；兩個用 GP 的點之間也至少隔「GP 點最短間隔」。按「開始這條路線」後路線會固定，不再隨時間重排。把最常傳送的地點設為最愛傳送點，傳送費可以打對折。</p>
-  <p>點素材名稱可複製。ET 1 小時 = 現實 2 分 55 秒。採集點與傳送點資料來自 FFXIV Teamcraft 與台服解包；價格來自 Universalis。只列出繁中服已開放的素材。</p>
+  <p>價格來自 Universalis（最近 10 筆成交均價）；採集點與傳送點資料來自 FFXIV Teamcraft 與台服解包。傳送費為估計值。ET 1 小時 = 現實 2 分 55 秒。</p>
+  <p class="kbd-hint">快捷鍵：<kbd>1</kbd>–<kbd>5</kbd> 切換頁面・<kbd>/</kbd> 圖鑑搜尋</p>
 </footer>
 <nav class="m-nav" id="m-nav" aria-label="頁面">
   <div class="m-clock"><span>ET</span><b id="m-et">--:--</b></div>
   <button type="button" data-v="leg">傳說</button>
   <button type="button" data-v="dm">晶簇</button>
-  <button type="button" data-v="fav">★ 收藏</button>
+  <button type="button" data-v="fav">收藏</button>
   <button type="button" data-v="dex">圖鑑</button>
+  <button type="button" data-v="set">設定</button>
 </nav>
 <dialog class="io-dialog" id="io-dialog" aria-labelledby="io-title">
       <div class="io-head"><h3 id="io-title">匯入／匯出收藏</h3><button type="button" class="io-close" id="io-close" aria-label="關閉">✕</button></div>
-      <p class="plan-hint">換裝置時，在舊裝置按「匯出」複製代碼（或下載檔案），到新裝置貼上後按「匯入」。代碼包含傳說素材的收藏物品與黑暗物質晶簇的收藏時段。</p>
       <div class="io-row">
         <button type="button" id="io-export" class="primary">匯出：產生代碼</button>
         <button type="button" id="io-copy">複製代碼</button>
@@ -641,12 +691,19 @@ footer p { max-width: 70ch; margin: .4em 0; }
     q: '',
     srv: store.get('srv', '陸行鳥'),
     sort: store.get('sort', 'lv'),
-    mode: ['dm', 'fav', 'dex'].includes(store.get('mode', 'leg')) ? store.get('mode', 'leg') : 'leg',
+    mode: ['dm', 'fav', 'dex', 'set'].includes(store.get('mode', 'leg')) ? store.get('mode', 'leg') : 'leg',
+    theme: store.get('theme', 'auto'),
+    tpset: Object.assign({ home: '', fav0: '', fav1: '', fav2: '' }, store.get('tpset', {})),
     // 實際移動時間：每點採集秒數、每次傳送的讀取＋騎乘緩衝（同地圖算一半）、兩個 GP 點的最短間隔（強心劑 CD）
-    travel: Object.assign({ gather: 45, buffer: 30, gap: 180 }, store.get('travel', {})),
+    // fly：每 1 格地圖座標要飛幾 ET 分鐘（依實測：瑪穆克→八面體隕鐵礦石 18.8 格 ≈ ET 22.5 分 → 1.2）
+    travel: Object.assign({ gather: 45, load: 12, fly: 1.2, gap: 180 }, store.get('travel', {})),
     dexTime: store.get('dexTime', 'all'),   // all | now | next6 | h0..h23
-    dmMarks: new Set(store.get('dmMarks', [])),   // 黑暗物質晶簇：以「採集點@ET 時段」收藏
+    dmMarks: new Set(store.get('dmMarks', []).filter(k => /^\d+@\d+$/.test(k))),
+    vip: new Set(store.get('vip', []).map(String).filter(k => /^\d+(@\d+)?$/.test(k))),   // 收藏裡的重要項目：物品 id 或晶簇「採集點@ET 時段」
+   // 黑暗物質晶簇：以「採集點@ET 時段」收藏
     done: new Set(store.get('done', [])),         // 已採過：「採集點@出現時間」
+    // 出現提醒：收藏的素材出現前 lead 秒，用提示音／桌面通知提醒；title = 分頁標題顯示倒數
+    alarm: Object.assign({ on: false, lead: 60, sound: true, notify: false, title: true }, store.get('alarm', {})),
   };
   let prices = {};      // itemId -> {avg, n, last} | null
   let market = {};      // itemId -> {vel, avg, minL, score, rank} 賣出划算度（Universalis aggregated）
@@ -701,7 +758,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
   async function fetchJson(url, tries = 3) {
     for (let k = 1; ; k++) {
       try {
-        const res = await fetch(url);
+        const res = await fetch(url, AbortSignal.timeout ? { signal: AbortSignal.timeout(20000) } : undefined);   // 20 秒沒回應就重試
         if (res.ok) return await res.json();
         if (res.status === 404) return null;
         throw new Error('HTTP ' + res.status);
@@ -751,16 +808,19 @@ footer p { max-width: 70ch; margin: .4em 0; }
     return out;
   }
 
+  let loadSeq = 0, loadProg = null;   // loadProg：{done, total} 讀取進度
   async function loadPrices(force) {
+    const my = ++loadSeq;               // 中途切換伺服器或重新整理時，舊的那一次讀取結果直接丟掉
     const scope = state.srv;
     const cacheKey = 'hist2.' + scope;
     const cached = store.get(cacheKey, null);
     if (!force && cached && Date.now() - cached.t < 10 * 60 * 1000) {
-      prices = cached.p; market = cached.m || {}; priceStatus = 'ok'; setPriceStatus(cached.t); render(); return;
+      prices = cached.p; market = cached.m || {}; priceStatus = 'ok'; loadProg = null; setPriceStatus(cached.t); render(); return;
     }
-    priceStatus = 'loading'; setPriceStatus();
-    const marketJob = loadMarket(scope).then(m => { market = m; scheduleRender(); }, () => { market = {}; });
     const ids = Object.keys(ITEMS).filter(id => ITEMS[id].tw && !ITEMS[id].sc);
+    priceStatus = 'loading'; loadProg = { done: 0, total: ids.length }; setPriceStatus();
+    // 划算度讀取失敗時保留原本的資料
+    const marketJob = loadMarket(scope).then(m => { if (my === loadSeq) { market = m; scheduleRender(); } }, () => {});
     const batches = [];
     for (let i = 0; i < ids.length; i += HIST_BATCH) batches.push(ids.slice(i, i + HIST_BATCH));
     const next = {};
@@ -783,10 +843,18 @@ footer p { max-width: 70ch; margin: .4em 0; }
     }
     const queue = [...batches];
     await Promise.all(Array.from({ length: HIST_CONCURRENCY }, async () => {
-      while (queue.length) { await runBatch(queue.shift()); prices = { ...next }; onPricesProgress(); }
+      while (queue.length && my === loadSeq) {
+        const chunk = queue.shift();
+        await runBatch(chunk);
+        if (my !== loadSeq) return;
+        loadProg.done += chunk.length; prices = { ...next }; setPriceStatus(); onPricesProgress();
+      }
     }));
+    if (my !== loadSeq) return;
     prices = next;
     await marketJob;
+    if (my !== loadSeq) return;
+    loadProg = null;
     if (failed === ids.length) { priceStatus = 'error'; setPriceStatus(null, lastErr); }
     else {
       priceStatus = 'ok';
@@ -797,23 +865,30 @@ footer p { max-width: 70ch; margin: .4em 0; }
     render();
   }
   function setPriceStatus(t, err, failed) {
-    const el = $('#st-price');
-    if (priceStatus === 'loading') el.textContent = `正在讀取「${state.srv}」市場價格…`;
-    else if (priceStatus === 'error') el.textContent = `無法連線 Universalis（${err?.message || '網路錯誤'}），請稍後按「重新整理價格」。`;
+    const el = $('#st-price'), bar = $('#load-bar');
+    $('#refresh').disabled = priceStatus === 'loading';
+    bar.hidden = priceStatus !== 'loading';
+    if (priceStatus === 'loading') {
+      const pct = loadProg?.total ? Math.round(loadProg.done / loadProg.total * 100) : 0;
+      bar.style.setProperty('--p', pct + '%');
+      el.textContent = `讀取價格… ${pct}%`; el.title = '';
+    }
+    else if (priceStatus === 'error') { el.textContent = '價格讀取失敗'; el.title = `無法連線 Universalis（${err?.message || '網路錯誤'}）`; }
     else {
       const all = Object.values(prices), ok = all.filter(Boolean).length;
-      el.textContent = `價格：${state.srv}，${ok}／${all.length} 項有成交紀錄${failed ? `，${failed} 項讀取失敗（${err?.message || '網路錯誤'}）` : ''}，更新於 ${new Date(t).toLocaleTimeString('zh-TW', { hour12: false })}`;
+      el.textContent = `價格：${state.srv}・${new Date(t).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })} 更新${failed ? `・${failed} 項讀取失敗` : ''}`;
+      el.title = `${ok}／${all.length} 項有成交紀錄${failed ? `，${failed} 項讀取失敗（${err?.message || '網路錯誤'}）` : ''}`;
     }
   }
 
   // ---------- 篩選與渲染 ----------
-  function matches(n) {
+  function matches(n, q) {   // q：搜尋字串，只有圖鑑會帶
     if (state.job !== 'ALL' && n.job !== state.job) return false;
     if (!state.exps.has(n.exp)) return false;
     if (!state.kinds.has(n.kind)) return false;
-    if (state.q) {
+    if (q) {
       const hay = [n.region, n.zone, n.ae, ...n.items.map(i => ITEMS[i].n)].join(' ');
-      if (!state.q.split(/\s+/).every(w => hay.includes(w))) return false;
+      if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
     }
     return true;
   }
@@ -838,7 +913,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const it = ITEMS[id];
     const label = `<span class="lab" title="${esc(it.n)}">${esc(it.n)}</span>`;
     if (!it.tw) return `<div class="price">${label}<span class="v"><small>台服未實裝</small></span></div>`;
-    if (it.sc) return `<div class="price" title="收藏品不能上市場；最高評價交貨一個可換的工票">${label}<span class="v">${it.sc.n} <small>${esc(it.sc.cur)}</small></span><span class="sub">最多可換工票</span></div>`;
+    if (it.sc) return `<div class="price" title="收藏品不能上市場；最高評價交貨一個可換的工票">${label}<span class="v">${it.sc.n} <small>${esc(it.sc.cur)}</small></span></div>`;
     if (id in prices && prices[id] === undefined) return `<div class="price">${label}<span class="v"><small>讀取失敗</small></span></div>`;
     if (!(id in prices)) return `<div class="price">${label}<span class="v"><small>讀取中</small></span></div>`;
     const p = prices[id];
@@ -850,22 +925,28 @@ footer p { max-width: 70ch; margin: .4em 0; }
 
   function nodeHtml(n, plan, bandStart) {
     const dk = bandStart != null ? doneKey(n.dmKey || n.id, bandStart) : null;
+    const reach = bandStart != null ? reachTag(bandStart, bandStart + slotDur(n) * 60000 / ET_RATIO, n) : '';
+    const inFav = plan?.mapKey === 'F';
+    const vipBtn = k => inFav ? `<button class="vip" type="button" data-vip="${k}" aria-pressed="${state.vip.has(k)}" title="重要項目：一定要去的點，照順序會來不及時自動往前排">重要</button>` : '';
     const items = n.items.map(i => {
       const it = ITEMS[i];
       const mk = n.dmKey ? state.dmMarks.has(n.dmKey) : isMarked(i);
       const starAttr = n.dmKey ? `data-dmmark="${n.dmKey}"` : `data-mark="${i}"`;
-      return `<div class="item${mk ? ' marked' : ''}"><button class="star" type="button" ${starAttr} aria-pressed="${mk}" title="${mk ? '取消收藏' : '收藏'}">★</button><img src="${ICON(it.ic)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span class="nm" data-copy="${esc(it.n)}" title="點擊複製">${esc(it.n)}</span>${it.tw ? '' : '<span class="na">台服未實裝</span>'}</div>`;
+      return `<div class="item${mk ? ' marked' : ''}"><button class="star" type="button" ${starAttr} aria-pressed="${mk}" title="${mk ? '取消收藏' : '收藏'}">★</button><img src="${ICON(it.ic)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span class="nm" data-copy="${esc(it.n)}" title="點擊複製">${esc(it.n)}</span>${it.tw ? '' : '<span class="na">台服未實裝</span>'}${vipBtn(n.dmKey || String(i))}</div>`;
     }).join('');
     const sub = n.zone && n.zone !== n.region ? `・${esc(n.zone)}` : '';
     const si = plan ? plan.stops.findIndex(s => s.n === n) : -1;
     const stop = si >= 0 ? plan.stops[si] : null;
+    // 照路線順序走到這一站時來不來得及（和「從現在出發」的即時提示是兩回事）
+    const late = stop?.risk && stop.finish > Date.now() ? `<span class="tag risk ${stop.risk}" title="依路線順序推算：前面幾站採完再過來，${stop.risk === 'late' ? '抵達時已經消失' : '抵達時只剩不到 30 秒'}">⚠ 照順序${stop.risk === 'late' ? '趕不上' : '很趕'}</span>` : '';
     return `<article class="node ${n.job}${stop?.use ? ' target' : ''}${stop ? ' onroute' : ''}${dk ? ' tappable' : ''}${dk && isDone(dk) ? ' is-done' : ''}" ${dk ? cardAttrs(dk) : ''}>
       <div class="items">${items}</div>
       <div class="meta">
         <span class="tag ${n.job}">${n.job === 'MIN' ? '採礦' : '園藝'} Lv${n.lv}</span>
-        ${dk ? doneTag(dk) : ''}<span class="tag ${n.kind}">${KIND_NAME[n.kind] || ''}</span>${stop ? `<span class="tag route-no">路線 ${si + 1}</span>` : ''}${stop?.use ? '<span class="tag leg">⚡ 用 GP</span>' : ''}
+        ${dk ? doneTag(dk) : ''}${reach}<span class="tag ${n.kind}">${KIND_NAME[n.kind] || ''}</span>${stop ? `<span class="tag route-no">路線 ${si + 1}</span>` : ''}${stop?.use ? '<span class="tag leg">⚡ 用 GP</span>' : ''}${late}${plan?.moved?.has(n) ? '<span class="tag leg" title="重要項目：照原本順序會來不及，已自動往前排">↑ 已提前</span>' : ''}
         <span>${esc(n.region)}${sub} <span class="coord">(${n.x.toFixed(1)}, ${n.y.toFixed(1)})</span></span>
-        <span class="ae" title="最近的以太之光">${esc(n.ae || '—')}</span>${stop?.mv || ''}
+        <span class="ae" title="最近的以太之光">${esc(n.ae || '—')}</span>
+        ${stop?.mv || ''}
       </div>
       <div class="prices">${n.items.map(priceHtml).join('')}</div>
       ${mapToggle((plan?.mapKey || 'L') + n.id, n)}
@@ -876,12 +957,21 @@ footer p { max-width: 70ch; margin: .4em 0; }
   // 同地圖 0（騎乘）、同地區、同大陸、跨大陸
   const CONTINENT = { 22: 'E', 23: 'E', 24: 'E', 25: 'E', 26: 'E', 497: 'E', 498: 'E', 2400: 'O', 2401: 'O', 2950: 'N', 3702: 'I', 3703: 'I', 3704: 'I', 3705: 'I', 4500: 'T', 4501: 'T', 4502: 'T' };
   const TP_COST = { region: 200, continent: 400, far: 700 };
-  function tpCost(from, to) {
+  function baseTpCost(from, to) {
     if (!from) return 0;                         // 路線起點不計
     if (from.map === to.map) return 0;
     if (from.reg === to.reg) return TP_COST.region;
     if (CONTINENT[from.reg] && CONTINENT[from.reg] === CONTINENT[to.reg]) return TP_COST.continent;
     return TP_COST.far;
+  }
+  // 套用設定頁的返回點（免費）與收藏點（半價）
+  function tpCost(from, to) {
+    const c = baseTpCost(from, to);
+    if (!c || !to.ae) return c;
+    const s = state.tpset;
+    if (to.ae === s.home) return 0;
+    if (to.ae === s.fav0 || to.ae === s.fav1 || to.ae === s.fav2) return Math.round(c / 2);
+    return c;
   }
   // 依序走完 stops 的總傳送費
   const pathCost = (start, stops) => stops.reduce((a, n, j) => a + tpCost(j ? stops[j - 1] : start, n), 0);
@@ -1024,20 +1114,50 @@ footer p { max-width: 70ch; margin: .4em 0; }
     return finishPlan(bands);
   }
 
-  // 依順序推算每一站的實際時間：從現在（或時段開始）起，每站 = 移動緩衝 + 採集時間；
-  // 採完時已超過該點消失時間 → 來不及；剩不到一次移動緩衝 → 時間緊
+  // ---------- 移動時間：依距離估算 ----------
+  // 傳送：讀取時間 + 從傳送點飛到採集點；同地圖：從上一個點直接飛過去。
+  // 距離用地圖座標（依 size_factor 換成同一比例），每格的飛行時間可在設定裡校正
+  const TIGHT_MS = 30000;   // 抵達時離消失不到 30 秒（現實）就算「很趕」
+  function flyMs(ax, ay, bx, by, sf) {
+    const grid = Math.hypot(ax - bx, ay - by) * (sf || 100) / 100;
+    return grid * state.travel.fly * 60000 / ET_RATIO;
+  }
+  function moveMs(prev, n) {
+    if (prev && prev.map === n.map) return flyMs(prev.x, prev.y, n.x, n.y, n.sf);
+    return state.travel.load * 1000 + (n.aex != null ? flyMs(n.aex, n.aey, n.x, n.y, n.sf) : 0);
+  }
+  // 從現在傳送到這個點需要的時間（現實毫秒）：傳送讀取＋飛行；在消失前碰到採集點就算趕得上
+  const reachNeed = n => moveMs(null, n);
+  // 卡片上的即時提示：剩餘時間扣掉傳送＋飛行，不夠就「趕不上」，只剩一點點就「很趕」；每秒更新
+  const reachTag = (start, end, n) => `<span class="tag reach" data-reach-s="${Math.round(start)}" data-reach-e="${Math.round(end)}" data-reach-need="${Math.round(reachNeed(n))}" hidden></span>`;
+  function updateReach() {
+    const now = Date.now();
+    document.querySelectorAll('[data-reach-e]').forEach(el => {
+      const s = +el.dataset.reachS, e = +el.dataset.reachE, need = +el.dataset.reachNeed;
+      const slack = e - Math.max(now + need, s);
+      const state_ = now >= e ? '' : slack < 0 ? 'late' : slack < TIGHT_MS ? 'tight' : '';
+      el.hidden = !state_;
+      if (!state_) return;
+      el.className = 'tag reach ' + state_;
+      el.textContent = state_ === 'late' ? '⚠ 趕不上' : '⚠ 很趕';
+      el.title = state_ === 'late' ? '剩餘時間扣掉傳送和飛行，抵達時已經消失' : '剩餘時間扣掉傳送和飛行，抵達時只剩不到 30 秒';
+    });
+  }
+  // 依順序推算每一站的實際時間：從現在（或時段開始）起，每站 = 移動時間 + 採集時間；
+  // 抵達時已超過該點消失時間 → 趕不上；抵達時離消失不到 30 秒 → 很趕（採集時間仍會算進下一站）
   function timeBands(bands) {
-    const gather = state.travel.gather * 1000, buf = state.travel.buffer * 1000;
+    const gather = state.travel.gather * 1000;
     let cursor = Date.now(), prev = null;
     for (const b of bands) {
       cursor = Math.max(cursor, b.start);
       for (const s of b.stops) {
-        const move = prev && prev.map === s.n.map ? buf / 2 : buf;
+        const move = moveMs(prev, s.n);
+        s.move = move;
         s.arrive = cursor + move;
         s.finish = s.arrive + gather;
         const nodeEnd = b.start + slotDur(s.n) * 60000 / ET_RATIO;
-        const slack = nodeEnd - s.finish;
-        s.risk = slack < 0 ? 'late' : slack < buf ? 'tight' : '';
+        const slack = nodeEnd - s.arrive;   // 抵達時還沒消失就算趕得上
+        s.risk = slack < 0 ? 'late' : slack < TIGHT_MS ? 'tight' : '';
         // 來不及的點視為會跳過：不佔用時間，後面的站不會被連帶拖延
         if (s.risk !== 'late') { cursor = s.finish; prev = s.n; }
       }
@@ -1077,9 +1197,6 @@ footer p { max-width: 70ch; margin: .4em 0; }
     return finishPlan(bands);
   }
 
-  const riskTag = s => s.risk === 'late' ? `<span class="tag risk late" title="預計 ${fmtClock(new Date(s.finish))} 才採完，採集點已消失">⚠ 可能來不及</span>`
-    : s.risk === 'tight' ? `<span class="tag risk" title="預計 ${fmtClock(new Date(s.finish))} 採完，離消失不到一次移動時間">⚠ 時間緊</span>` : '';
-
   // 路線狀態與摘要（路線本身直接標在下方時刻表的卡片上）
   function renderRoute(plan) {
     const now = Date.now();
@@ -1097,11 +1214,11 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const favSave = fav.reduce((a, [, c]) => a + c / 2, 0);
     const finished = frozen && !open;
     $('#route').innerHTML = (frozen
-      ? `<span class="route-state">路線進行中・${new Date(frozen.t).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })} 開始${finished ? '・已走完，按「重新規劃」排下一輪' : ''}</span><button type="button" id="route-replan">重新規劃</button><button type="button" id="route-stop">結束路線</button>`
-      : `<span class="route-state">路線預覽・跟著時間自動更新</span><button type="button" id="route-start" class="primary">開始這條路線</button>`)
+      ? `<span class="route-state">路線進行中・${new Date(frozen.t).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })} 開始${finished ? '・已走完' : ''}</span><button type="button" id="route-replan">重新規劃</button><button type="button" id="route-stop">結束路線</button>`
+      : `<span class="route-state">路線預覽</span><button type="button" id="route-start" class="primary">開始這條路線</button>`)
       + (state.gp.cost > state.gp.max ? '<span class="inc-warn">每次用量大於 GP 上限，不會安排用 GP 的點</span>' : '');
     $('#route-sum').innerHTML = stopsTotal
-      ? `一輪 ${plan.bands.filter(b => b.stops.length).length} 個時段、${stopsTotal} 個點（用 GP ${gpTotal} 次），傳送 ${plan.tps} 次，估計傳送費約 ${gil(plan.fee)} gil。${late || tight ? `<b class="risk-sum">⚠ ${late ? `${late} 個點可能來不及` : ''}${late && tight ? '、' : ''}${tight ? `${tight} 個點時間緊` : ''}</b>（每點採集 ${state.travel.gather} 秒＋移動 ${state.travel.buffer} 秒估算）` : ''}${fav.length ? `建議最愛傳送點（半價，約省 ${gil(Math.round(favSave))} gil）：${fav.map(([a]) => esc(a)).join('、')}` : ''}`
+      ? `一輪 ${plan.bands.filter(b => b.stops.length).length} 個時段、${stopsTotal} 個點（用 GP ${gpTotal} 次），傳送 ${plan.tps} 次，傳送費約 ${gil(plan.fee)} gil。${late || tight ? `<b class="risk-sum">⚠ ${late ? `${late} 個點照排程會趕不上` : ''}${late && tight ? '、' : ''}${tight ? `${tight} 個點很趕` : ''}</b>。` : ''}${fav.length ? `建議收藏點：${fav.map(([a]) => esc(a)).join('、')}（約省 ${gil(Math.round(favSave))} gil）` : ''}`
       : '市場資料讀到後才會排出路線。';
   }
 
@@ -1185,29 +1302,29 @@ footer p { max-width: 70ch; margin: .4em 0; }
   }
   // 貪婪排程：每一站花「2 ET 小時 / 站數」；可採的點裡先挑傳送費最低的，同費用挑較早消失的
   function buildDmRoute() {
-    // 每站時間 = 移動緩衝（同地圖算一半）+ 採集時間，換算成 ET
-    const gather = state.travel.gather * 1000 * ET_RATIO, buf = state.travel.buffer * 1000 * ET_RATIO;
+    // 每站時間 = 移動時間（依距離估算）+ 採集時間，換算成 ET
+    const gather = state.travel.gather * 1000 * ET_RATIO, tight = TIGHT_MS * ET_RATIO;
     const t0 = etNow();
     // 已採過的那一次出現不再排進路線
     const occ = dmOccurrences(t0);
     const rows = [];
     let t = t0, cur = null;
     const left = new Set(occ);
-    const moveOf = o => cur && cur.map === o.n.map ? buf / 2 : buf;
+    const moveOf = o => moveMs(cur, o.n) * ET_RATIO;
     while (left.size && t < t0 + ET_D) {
-      // 已出現（或抵達時剛好出現）、而且採完時還沒消失的點
-      const avail = [...left].filter(o => o.s <= t + moveOf(o) && t + moveOf(o) + gather <= o.e);
+      // 已出現（或抵達時剛好出現）、而且抵達時還沒消失的點
+      const avail = [...left].filter(o => o.s <= t + moveOf(o) && t + moveOf(o) < o.e);   // 消失前抵達就算趕得上
       if (!avail.length) {
-        for (const o of [...left]) if (o.e - gather - buf < t) left.delete(o);   // 已來不及
+        for (const o of [...left]) if (o.e - moveOf(o) <= t) left.delete(o);   // 已來不及
         const next = [...left].filter(o => o.s > t).sort((a, b) => a.s - b.s)[0];
         if (!next) break;
-        t = Math.max(t, next.s - buf); continue;
+        t = Math.max(t, next.s - moveOf(next)); continue;
       }
       avail.sort((a, b) => tpCost(cur, a.n) - tpCost(cur, b.n) || a.e - b.e);
       const o = avail[0];
-      const arrive = Math.max(t + moveOf(o), o.s), finish = arrive + gather;
-      const slack = o.e - finish;
-      rows.push({ id: o.n.id, s: o.s, e: o.e, t: arrive, finish, risk: slack < buf ? 'tight' : '', cost: tpCost(cur, o.n), same: !!cur && cur.map === o.n.map, done: false });
+      const mv = moveOf(o), arrive = Math.max(t + mv, o.s), finish = arrive + gather;
+      const slack = o.e - arrive;
+      rows.push({ id: o.n.id, s: o.s, e: o.e, t: arrive, finish, move: mv / ET_RATIO, risk: slack < tight ? 'tight' : '', cost: tpCost(cur, o.n), same: !!cur && cur.map === o.n.map, done: false });
       left.delete(o); cur = o.n; t = finish;
     }
     return { t: Date.now(), rows };
@@ -1217,7 +1334,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
   // ---------- 圖鑑：ET 整點 × 版本 一覽 ----------
   function renderDex() {
     // 圖鑑列出所有素材：未知採集點不限前 20 名，一般採集點也有的素材也顯示（標「一般點也有」）
-    const list = NODES.filter(matches);
+    const list = NODES.filter(n => matches(n, state.q));
     const exps = EXPS.filter(([k]) => state.exps.has(k));
     const etn = etNow(), curH = Math.floor(etn / ET_H) % 24, curM = (etn / 60000) % 1440;
     // 時間段篩選：全部、出現中、接下來 6 ET 小時、指定整點
@@ -1272,6 +1389,67 @@ footer p { max-width: 70ch; margin: .4em 0; }
     $('#dex-hour').value = state.dexTime.startsWith('h') ? state.dexTime : '';
   }
 
+  // ---------- 設定頁 ----------
+  function applyTheme() {
+    const v = state.theme;
+    if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v);
+    else document.documentElement.removeAttribute('data-theme');
+    if (pipWin) { if (v === 'auto') pipWin.document.documentElement.removeAttribute('data-theme'); else pipWin.document.documentElement.setAttribute('data-theme', v); }
+    $('#theme-color').content = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim();
+  }
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => applyTheme());
+  // 所有傳送點（以太之光），依地區分組；以太網節點不能設成收藏點，排除
+  const AETHERYTES = (() => {
+    const m = new Map();
+    for (const n of [...NODES, ...DM_NODES]) if (n.ae && !n.aeShard && !m.has(n.ae)) m.set(n.ae, n.region);
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'zh-Hant') || a[0].localeCompare(b[0], 'zh-Hant'));
+  })();
+  // 依「我的收藏」的路線推薦：統計每個傳送點一輪要花的傳送費，最貴的當返回點（免費），其次三個當收藏點（半價）
+  function recommendTp() {
+    // 以「沒有設定收藏點」時的路線來統計，推薦結果才不會因為已套用的設定而變動
+    const keep = state.tpset;
+    state.tpset = { home: '', fav0: '', fav1: '', fav2: '' };
+    const bands = favBands(favNodes());
+    state.tpset = keep;
+    const spend = new Map();
+    let prev = null;
+    for (const b of bands) for (const n of b.order) {
+      const c = baseTpCost(prev, n);
+      if (c && n.ae && !n.aeShard) spend.set(n.ae, (spend.get(n.ae) || 0) + c);
+      prev = n;
+    }
+    return [...spend.entries()].sort((a, b) => b[1] - a[1]);
+  }
+  // 用指定的收藏點／返回點重排「我的收藏」路線，算一輪的傳送費
+  function favFee(tpset) {
+    const keep = state.tpset;
+    state.tpset = tpset;
+    let fee = 0, prev = null;
+    for (const b of favBands(favNodes())) for (const n of b.order) { fee += tpCost(prev, n); prev = n; }
+    state.tpset = keep;
+    return fee;
+  }
+  function renderSettings() {
+    $('#st-count').textContent = '設定';
+    document.querySelectorAll('#set-theme .chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.themeV === state.theme));
+    const opts = `<option value="">（未設定）</option>` + [...new Set(AETHERYTES.map(a => a[1]))].map(r =>
+      `<optgroup label="${esc(r)}">${AETHERYTES.filter(a => a[1] === r).map(([ae]) => `<option value="${esc(ae)}">${esc(ae)}</option>`).join('')}</optgroup>`).join('');
+    document.querySelectorAll('.tpset').forEach(sel => {
+      if (!sel.options.length) sel.innerHTML = opts;
+      sel.value = state.tpset[sel.dataset.k] || '';
+    });
+    const rec = recommendTp();
+    if (!rec.length) { $('#set-rec').innerHTML = '<small>收藏素材後，這裡會推薦返回點與收藏點。</small>'; return; }
+    const pick = rec.slice(0, 4);
+    const none = favFee({ home: '', fav0: '', fav1: '', fav2: '' });
+    const cur = favFee(state.tpset);
+    const best = favFee({ home: pick[0]?.[0] || '', fav0: pick[1]?.[0] || '', fav1: pick[2]?.[0] || '', fav2: pick[3]?.[0] || '' });
+    $('#set-rec').innerHTML = `<b>依我的收藏推薦</b>
+      <ol>${pick.map(([ae, c], i) => `<li>${i === 0 ? '返回點' : `收藏點 ${i}`}：<b>${esc(ae)}</b> <small>約 ${gil(c)} gil</small></li>`).join('')}</ol>
+      <small>「我的收藏」一輪傳送費：不設定約 ${gil(none)} gil・目前設定約 ${gil(cur)} gil・照推薦約 ${gil(best)} gil</small>
+      <button type="button" id="set-apply">套用推薦</button>`;
+  }
+
   // ---------- 我的收藏：只排標記的素材（傳說素材以物品收藏、黑暗物質晶簇以時段收藏） ----------
   const jobOk = n => state.job === 'ALL' || n.job === state.job;
   const dmSlotNode = k => {
@@ -1284,22 +1462,46 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const dm = [...state.dmMarks].map(dmSlotNode).filter(n => n && jobOk(n));
     return [...leg, ...dm];
   }
-  // 依出現的 ET 時段分組（由近到遠），時段內排成傳送費最低的順序
+  // 重要項目：價值高、一定要去的點
+  const isVip = n => n.dmKey ? state.vip.has(n.dmKey) : n.items.some(i => state.vip.has(String(i)));
+  // 依出現的 ET 時段分組（由近到遠），時段內排成傳送費最低的順序；
+  // 重要項目照這個順序走會趕不上（或很趕）時，自動往前移，直到來得及或排到最前面
   function favBands(list) {
     const bands = new Map();
     for (const n of list) for (const h of n.spawns) {
-      const w = windowFor(h, slotDur(n));   // 同上：依這一次出現分組，過期的點歸到下一輪
+      const w = windowFor(h, slotDur(n));   // 依這一次出現分組，過期的點歸到下一輪
       const key = `${h}|${Math.round(w.start / 60000)}`;
       if (!bands.has(key)) bands.set(key, { h, start: w.start, end: w.end, nodes: [] });
       const b = bands.get(key);
       b.end = Math.max(b.end, w.end);
       b.nodes.push(n);
     }
-    let prev = null;
+    const gather = state.travel.gather * 1000;
+    let prev = null, cursor = Date.now();
     return [...bands.values()].sort((a, b) => a.start - b.start).map(b => {
-      const order = bestOrder(prev, b.nodes);
+      let order = bestOrder(prev, b.nodes);
+      const t0 = Math.max(cursor, b.start);
+      // 照順序走一遍：每站 = 移動 + 採集；抵達時離消失不到 30 秒就算來不及
+      const walk = ord => {
+        let t = t0, p = prev;
+        const late = ord.map(n => {
+          const arrive = t + moveMs(p, n), end = b.start + slotDur(n) * 60000 / ET_RATIO;
+          if (arrive < end) { t = arrive + gather; p = n; }   // 已消失的點視為跳過，不佔時間
+          return arrive > end - TIGHT_MS;
+        });
+        return { late, t };
+      };
+      const moved = new Set();
+      for (let guard = 0; guard < 64; guard++) {
+        const { late } = walk(order);
+        const i = order.findIndex((n, k) => k > 0 && late[k] && isVip(n) && !isVip(order[k - 1]));
+        if (i < 0) break;
+        order = [...order]; [order[i - 1], order[i]] = [order[i], order[i - 1]];
+        moved.add(order[i - 1]);
+      }
+      cursor = walk(order).t;
       if (order.length) prev = order[order.length - 1];
-      return { h: b.h, start: b.start, end: b.end, order };
+      return { h: b.h, start: b.start, end: b.end, order, moved };
     });
   }
   let favFrozen = store.get('favRoute', null);   // {t, bands:[{h,start,end,stops:[{id,items,dmKey}]}]}
@@ -1322,7 +1524,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
     $('#fav-stat').innerHTML = `<span class="lab">收藏</span><b>${marks.size} <small>個</small></b><span class="sub">${list.length} 個採集點</span>`;
     if (!list.length && !favFrozen) {
       $('#fav-next').innerHTML = ''; $('#fav-ctl').innerHTML = '';
-      $('#fav-list').innerHTML = `<div class="fav-empty"><b>還沒有收藏</b>在「傳說素材」點素材前的 ★ 收藏物品，或在「黑暗物質晶簇」點 ★ 收藏某個時段。</div>`;
+      $('#fav-list').innerHTML = `<div class="fav-empty"><b>還沒有收藏</b>在其他頁面點 ★ 收藏素材或時段。</div>`;
       return;
     }
     const all = favFrozen ? thawFav() : favBands(list);
@@ -1343,7 +1545,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
         if (s) next = { b, s };
       }
       const pill = b.end <= now ? '已過' : `<span data-start="${b.start}">${fmtDur(b.start - now)}</span> 後`;
-      const plan = { stops, mapKey: 'F' };
+      const plan = { stops, mapKey: 'F', moved: b.moved };
       return `<section class="band${live ? ' live' : ''}" id="fav-b-${b.h}">
         <div class="hour"><b>ET ${pad(b.h)}:00</b><span class="when">本地 ${fmtClock(new Date(b.start))}</span>${live ? barHtml(b.start, b.end) : `<span class="pill">${pill}</span>`}</div>
         <div class="rows">${b.order.map(n => nodeHtml(n, plan, b.start)).join('')}</div>
@@ -1356,20 +1558,20 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const nk = nn ? doneKey(nn.dmKey || nn.id, next.b.start) : '';
     $('#fav-next').innerHTML = nn ? `<div class="next-card tappable" data-nextkey="${nk}" tabindex="0" title="點一下標記為已採過，顯示下一個">
         <div>
-          <span class="eyebrow">下一個收藏・點這張卡片表示採完</span>
+          <span class="eyebrow">下一個收藏</span>
           <h3>${title(nn)}</h3>
-          <div class="where"><span class="tag ${nn.job}">${nn.job === 'MIN' ? '採礦' : '園藝'} Lv${nn.lv}</span><span>${esc(nn.region)}・${esc(nn.zone)}</span><span class="coord">X ${nn.x.toFixed(1)}・Y ${nn.y.toFixed(1)}</span>${next.s.mv}</div>
+          <div class="where">${reachTag(next.b.start, next.b.start + slotDur(nn) * 60000 / ET_RATIO, nn)}<span class="tag ${nn.job}">${nn.job === 'MIN' ? '採礦' : '園藝'} Lv${nn.lv}</span><span>${esc(nn.region)}・${esc(nn.zone)}</span><span class="coord">X ${nn.x.toFixed(1)}・Y ${nn.y.toFixed(1)}</span><span class="ae">${esc(nn.ae)}</span></div>
           <div class="next-at"><span>出現時段</span><b>ET ${pad(next.b.h)}:00</b><small>本地 ${fmtClock(new Date(next.b.start))}</small></div>
           ${barHtml(next.b.start, next.b.end)}
         </div>
         ${mapHtml(nn)}
-      </div>` : (favFrozen ? '<p class="plan-hint">這條路線已經走完，按「重新規劃」排下一輪。</p>' : '');
+      </div>` : (favFrozen ? '<p class="plan-hint">這條路線已經走完。</p>' : '');
     $('#fav-ctl').innerHTML = favFrozen
       ? `<span class="route-state">路線進行中・${new Date(favFrozen.t).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })} 開始</span><button type="button" id="fav-replan">重新規劃</button><button type="button" id="fav-stop">結束路線</button>`
-      : `<span class="route-state">預覽・跟著時間自動更新</span><button type="button" id="fav-start" class="primary">開始這條路線</button>`;
+      : `<span class="route-state">預覽</span><button type="button" id="fav-start" class="primary">開始這條路線</button>`;
     $('#fav-list').innerHTML = html
       + (doneHtml ? `<details class="route-more"><summary>已過的 ${done.length} 個時段</summary>${doneHtml}</details>` : '')
-      + `<p class="route-sum">一輪 ${all.length} 個時段、${seq} 個採集點，傳送 ${tps} 次，估計傳送費約 <b>${gil(fee)}</b> gil。</p>`;
+      + `<p class="route-sum">一輪 ${all.length} 個時段、${seq} 個採集點，傳送 ${tps} 次，傳送費約 <b>${gil(fee)}</b> gil。</p>`;
     updateBars();
   }
 
@@ -1385,7 +1587,6 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const tpCount = {};
     let fee = 0, tps = 0, firstOpen = -1;
     const jobTag = n => `<span class="tag ${n.job}">${n.job === 'MIN' ? '採礦' : '園藝'}</span>`;
-    const moveHtml = (r, n) => r.same ? '<span class="move">同地圖・騎乘</span>' : `<span class="move tp">傳送 ▸ ${esc(n.ae)}${r.cost ? `・約 ${r.cost} gil` : ''}</span>`;
     const rows = plan.rows.map((r, j) => {
       const n = byId.get(r.id); if (!n) return null;
       if (!r.same) { tps++; fee += r.cost; if (!n.aeShard) tpCount[n.ae] = (tpCount[n.ae] || 0) + r.cost; }
@@ -1403,10 +1604,10 @@ footer p { max-width: 70ch; margin: .4em 0; }
       return `<article class="node ${n.job} dm-card tappable${past ? ' past' : ''}${isDone(dk) ? ' is-done' : ''}${now ? ' target' : ''}" ${cardAttrs(dk)}>
         <div class="items"><button class="star" type="button" data-dmmark="${slot}" aria-pressed="${fav}" title="${fav ? '取消收藏這個時段' : '收藏這個時段'}">★</button><span class="no">${j >= 0 ? j + 1 : '✓'}</span><div class="dm-title"><b>${esc(n.zone)}</b><small>${esc(n.main.join('、'))}</small></div></div>
         <div class="meta">
-          ${doneTag(dk)}${jobTag(n)}<span class="tag uns">Lv${n.lv}</span>${r.risk === 'tight' ? `<span class="tag risk" title="預計 ET ${pad(Math.floor(r.finish / ET_H) % 24)}:${pad(Math.floor(r.finish / 60000) % 60)} 採完，離消失不到一次移動時間">⚠ 時間緊</span>` : ''}
+          ${doneTag(dk)}${jobTag(n)}<span class="tag uns">Lv${n.lv}</span>${reachTag(r.s / ET_RATIO, r.e / ET_RATIO, n)}
           <span>${esc(n.region)} <span class="coord">(${n.x.toFixed(1)}, ${n.y.toFixed(1)})</span></span>
           <span class="ae" title="最近的以太之光">${esc(n.ae || '—')}</span>
-          ${moveHtml(r, n)}
+          ${r.same ? '<span class="move">同地圖・騎乘</span>' : `<span class="move tp">傳送${r.cost ? `・約 ${r.cost} gil` : ''}</span>`}
         </div>
         <div class="prices"><div class="arrive"><span class="lab">預計抵達</span><b>${etStr(r.t)}</b><small>本地 ${fmtClock(new Date(r.t / ET_RATIO))}</small></div></div>
         <div class="dm-extra">${barHtml(r.s / ET_RATIO, r.e / ET_RATIO, r.t / ET_RATIO)}${mapToggle('D' + j, n)}</div>
@@ -1435,24 +1636,24 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const nx = rows.find(x => x.j === firstOpen && x.j >= 0);
     $('#dm-next').innerHTML = nx ? `<div class="next-card tappable" data-nextkey="${doneKey(`D${nx.n.id}`, nx.r.s / ET_RATIO)}" tabindex="0" title="點一下標記為已採過，換下一站">
         <div>
-          <span class="eyebrow">下一站・第 ${nx.j + 1} 站・點這張卡片表示採完</span>
+          <span class="eyebrow">下一站・第 ${nx.j + 1} 站</span>
           <h3>${esc(nx.n.zone)}</h3>
-          <div class="where">${jobTag(nx.n)}<span>${esc(nx.n.region)}</span><span class="coord">X ${nx.n.x.toFixed(1)}・Y ${nx.n.y.toFixed(1)}</span>${moveHtml(nx.r, nx.n)}</div>
+          <div class="where">${reachTag(nx.r.s / ET_RATIO, nx.r.e / ET_RATIO, nx.n)}${jobTag(nx.n)}<span>${esc(nx.n.region)}</span><span class="coord">X ${nx.n.x.toFixed(1)}・Y ${nx.n.y.toFixed(1)}</span><span class="ae">${esc(nx.n.ae)}</span></div>
           <div class="mats">${esc(nx.n.main.join('、'))}</div>
           <div class="next-at"><span>預計抵達</span><b>${etStr(nx.r.t)}</b><small>本地 ${fmtClock(new Date(nx.r.t / ET_RATIO))}</small></div>
           ${barHtml(nx.r.s / ET_RATIO, nx.r.e / ET_RATIO, nx.r.t / ET_RATIO)}
         </div>
         ${mapHtml(nx.n)}
-      </div>` : '<p class="plan-hint">這條路線已經走完，按「重新規劃」排下一輪。</p>';
+      </div>` : '<p class="plan-hint">這條路線已經走完。</p>';
     $('#dm-ctl').innerHTML = dmFrozen
       ? `<span class="route-state">路線進行中・${new Date(dmFrozen.t).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })} 開始</span><button type="button" id="dm-replan">重新規劃</button><button type="button" id="dm-stop">結束路線</button>`
-      : `<span class="route-state">預覽・跟著時間自動更新</span><button type="button" id="dm-start" class="primary">開始這條路線</button>`;
+      : `<span class="route-state">預覽</span><button type="button" id="dm-start" class="primary">開始這條路線</button>`;
     // 已採過或已消失的站收進「已過」，其餘照路線順序列出
     const done = rows.filter(x => x.past), todo = rows.filter(x => !x.past);   // 已過的收在最下面
     $('#dm-list').innerHTML = groupByHour(todo).map(bandHtml).join('');
     $('#dm-more').innerHTML = done.length ? `<details class="route-more"><summary>時間已過的 ${done.length} 站</summary>${groupByHour(done).map(bandHtml).join('')}</details>` : '';
     const fav = Object.entries(tpCount).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    $('#dm-sum').innerHTML = `接下來 24 ET 小時（約現實 70 分鐘）可採 <b>${plan.rows.length}</b> 個點，傳送 ${tps} 次，估計傳送費約 <b>${gil(fee)}</b> gil。${fav.length ? `建議設為最愛傳送點：${fav.map(([a]) => esc(a)).join('、')}` : ''}`;
+    $('#dm-sum').innerHTML = `接下來 24 ET 小時可採 <b>${plan.rows.length}</b> 個點，傳送 ${tps} 次，傳送費約 <b>${gil(fee)}</b> gil。${fav.length ? `建議收藏點：${fav.map(([a]) => esc(a)).join('、')}` : ''}`;
     // 全部採集點出現時間
     const curH = Math.floor(etn / ET_H) % 24;
     const list = DM_NODES.filter(n => state.job === 'ALL' || n.job === state.job)
@@ -1468,7 +1669,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
   // 依目前篩選，把採集點分到各 ET 時段（由近到遠），時段內依排序設定排好
   function currentBands() {
     const top = unsTopSet();
-    const list = NODES.filter(matches).flatMap(n => {
+    const list = NODES.filter(n => matches(n)).flatMap(n => {
       // 一般採集點也採得到的素材不放進時刻表（圖鑑才顯示）
       const timed = n.items.filter(i => !ITEMS[i].norm);
       const items = n.kind === 'uns' ? timed.filter(i => top.has(i) || isMarked(i)) : timed;
@@ -1496,11 +1697,24 @@ footer p { max-width: 70ch; margin: .4em 0; }
   }
 
   // 每次重繪頁面後，也重算精簡模式要顯示的下一站
-  function render() { renderPage(); refreshMini(); }
+  // 重繪會換掉整個列表：記住鍵盤焦點所在的卡片／按鈕，重繪後放回去
+  function focusKey() {
+    const a = document.activeElement;
+    if (!a || !a.closest?.('main')) return null;
+    for (const k of ['cardkey', 'nextkey', 'mark', 'dmmark']) if (a.dataset[k] != null) return `main [data-${k}="${CSS.escape(a.dataset[k])}"]`;
+    return a.id ? '#' + CSS.escape(a.id) : null;
+  }
+  function render() {
+    const keep = focusKey();
+    renderPage(); updateReach(); refreshMini(); refreshAlarms();
+    $('#fav-badge').textContent = state.marks.size + state.dmMarks.size || '';
+    if (keep && !document.activeElement?.closest?.('main')) document.querySelector(keep)?.focus({ preventScroll: true });
+  }
   function renderPage() {
     if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
     lastRenderAt = Date.now();
-    for (const m of ['leg', 'dm', 'fav', 'dex']) document.body.classList.toggle('mode-' + m, state.mode === m);
+    for (const m of ['leg', 'dm', 'fav', 'dex', 'set']) document.body.classList.toggle('mode-' + m, state.mode === m);
+    if (state.mode === 'set') { renderSettings(); lastKey = Math.floor(etNow() / 3600000) % 24; return; }
     if (state.mode === 'dex') { renderDex(); lastKey = Math.floor(etNow() / 3600000) % 24; return; }
     if (state.mode === 'dm') { renderDm(); lastKey = Math.floor(etNow() / 3600000) % 24; return; }
     if (state.mode === 'fav') { renderFav(); lastKey = Math.floor(etNow() / 3600000) % 24; return; }
@@ -1508,7 +1722,11 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const now = Date.now();
     const arr = currentBands();
     $('#st-count').textContent = `${arr.count} 個採集點`;
-    if (!arr.length) { $('#list').innerHTML = '<p class="empty">沒有符合條件的採集點。試著放寬版本、職業或類型。</p>'; if (frozen) renderRoute(thawPlan()); return; }
+    if (!arr.length) {
+      $('#list').innerHTML = '<p class="empty">沒有符合條件的採集點。試著放寬版本、職業或類型。</p>';
+      if (frozen) renderRoute(thawPlan()); else { $('#route').innerHTML = ''; $('#route-sum').textContent = ''; }
+      lastKey = curHour; return;
+    }
     const plan = frozen ? thawPlan() : buildPlan(arr);
     renderRoute(plan);
     // 時刻表的每個時段對應到路線上同一個 ET 時段（固定路線依開始時間比對）
@@ -1522,14 +1740,14 @@ footer p { max-width: 70ch; margin: .4em 0; }
       const on = ids.map(id => b.nodes.find(n => n.id === id)).filter(Boolean);
       b.nodes = [...on, ...b.nodes.filter(n => !on.includes(n))];
       plans[k] = { ...plans[k], stops: plans[k].stops.map(s => ({ ...s, n: b.nodes.find(n => n.id === s.n.id) || s.n,
-        mv: (s.same ? '<span class="move">同地圖・騎乘</span>' : `<span class="move tp">傳送 ▸ ${esc(s.n.ae)}${s.cost ? `・約 ${s.cost} gil` : ''}</span>`) + riskTag(s) })) };
+        mv: s.same ? '<span class="move">同地圖・騎乘</span>' : `<span class="move tp">傳送 ▸ ${esc(s.n.ae)}${s.cost ? `・約 ${s.cost} gil` : ''}</span>` })) };
     });
     const gpNote = k => {
       const p = plans[k];
-      if (p.gp.length) return `<p class="gp-note"><b>⚡ 用 GP</b>這個時段把 GP 用在 ${p.gp.map(s => itemLabel(s.item)).join('、')}</p>`;
+      if (p.gp.length) return `<p class="gp-note"><b>⚡ 用 GP</b>${p.gp.map(s => itemLabel(s.item)).join('、')}</p>`;
       if (!p.val) return '';
       const nx = plans.find((q, j) => j > k && q.gp?.length);
-      return nx ? `<p class="gp-note keep"><b>保留 GP</b>留給 ET ${pad(nx.h)}:00 的 ${itemLabel(nx.gp[0].item)}，划算度比這個時段高</p>` : '';
+      return nx ? `<p class="gp-note keep"><b>保留 GP</b>留給 ET ${pad(nx.h)}:00 的 ${itemLabel(nx.gp[0].item)}</p>` : '';
     };
     $('#list').innerHTML = arr.map((b, k) => {
       const live = b.start <= now && now < b.end;
@@ -1550,21 +1768,24 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const d = new Date();
     $('#lt').textContent = `${fmtClock(d)}:${pad(d.getSeconds())}`;
     const now = Date.now();
+    tickAlarms(now);
     let needRender = h !== lastKey;
     document.querySelectorAll('[data-end]').forEach(el => { const t = +el.dataset.end; if (t <= now) needRender = true; else el.textContent = fmtDur(t - now); });
     document.querySelectorAll('[data-start]').forEach(el => { const t = +el.dataset.start; if (t <= now) needRender = true; else el.textContent = fmtDur(t - now); });
     if (updateBars()) needRender = true;
-    if (needRender) render(); else tickMini();
+    if (needRender) render(); else { updateReach(); tickMini(); }
   }
 
   // ---------- 精簡模式（Mini Mode） ----------
   // 來源：傳說路線／黑暗物質晶簇路線／我的收藏；按一下卡片 = 採完，換下一站
-  state.mini = Object.assign({ open: false, src: 'fav', alpha: 0.72, x: 24, y: 120, w: 420, h: 170 }, store.get('mini', {}));
+  state.mini = Object.assign({ open: false, src: 'fav', alpha: 0.72, x: 24, y: 120, w: 440, h: 200 }, store.get('mini', {}));
   const saveMini = () => store.set('mini', { ...state.mini });
   const MINI_SRC = { leg: '傳說路線', dm: '黑暗物質晶簇', fav: '我的收藏' };
   const ICO = {
     pick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 4c3 0 6 2 7 5-3-2-6-2-9 0"/><path d="M14 4c-1 3-1 6 1 9"/><path d="M12 9 3 20"/></svg>',
     pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 1 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>',
+    tp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 19 12 12 22 5 12z"/><path d="M12 7v10"/></svg>',
+    ride: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h12"/><path d="m13 6 6 6-6 6"/></svg>',
     bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
   };
   let miniCache = null, pipWin = null;
@@ -1576,23 +1797,33 @@ footer p { max-width: 70ch; margin: .4em 0; }
   function miniStops() {
     const src = state.mini.src, out = [];
     const place = n => `${n.region}・${n.ae || n.zone}`;
+    // 傳送資訊：要傳送到哪個以太之光、約多少 gil，或同地圖騎乘
+    // need：從現在傳送過去（讀取＋飛行）再採完要多久，用來判斷趕不趕得上
+    const tp = (n, same, cost) => ({ ae: n.ae || '', region: n.region, zone: n.zone, x: n.x, y: n.y, map: n.map, same: !!same, cost: cost || 0, need: reachNeed(n) });
     if (src === 'fav') {
       const all = favFrozen ? thawFav() : favBands(favNodes());
-      for (const b of all) for (const n of b.order) out.push({
+      let prev = null;
+      for (const b of all) for (const n of b.order) {
+        const same = !!prev && prev.map === n.map, cost = tpCost(prev, n), pn = prev; prev = n;
+        out.push({ ...tp(n, same, cost, pn),
         name: n.dmKey ? '黑暗物質晶簇' : n.items.map(i => ITEMS[i].n).join('、'),
         kind: n.dmKey ? `黑暗物質晶簇・${n.zone}` : `${KIND_NAME[n.kind]}素材`, place: place(n),
         start: b.start, end: b.end, key: doneKey(n.dmKey || n.id, b.start), gp: false, ic: ITEMS[n.items[0]]?.ic });
+      }
     } else if (src === 'leg') {
       const arr = currentBands();
       const plan = frozen ? thawPlan() : arr.length ? buildPlan(arr) : { bands: [] };
-      for (const b of plan.bands) for (const s of b.stops) out.push({
+      let pn = null;
+      for (const b of plan.bands) for (const s of b.stops) { const prevN = pn; pn = s.n; out.push({ ...tp(s.n, s.same, s.cost, prevN),
         name: ITEMS[s.item]?.n || '', kind: `${KIND_NAME[s.n.kind]}素材`, place: place(s.n),
-        start: b.start, end: b.start + slotDur(s.n) * 60000 / ET_RATIO, key: doneKey(s.n.id, b.start), gp: !!s.use, ic: ITEMS[s.item]?.ic });
+        start: b.start, end: b.start + slotDur(s.n) * 60000 / ET_RATIO, key: doneKey(s.n.id, b.start), gp: !!s.use, ic: ITEMS[s.item]?.ic }); }
     } else {
       const byId = new Map(DM_NODES.map(n => [n.id, n]));
+      let pn = null;
       for (const r of (dmFrozen || buildDmRoute()).rows) {
         const n = byId.get(r.id); if (!n) continue;
-        out.push({ name: '黑暗物質晶簇', kind: `${n.zone}・Lv${n.lv}`, place: `${n.region}・${n.ae}`,
+        const prevN = pn; pn = n;
+        out.push({ ...tp(n, r.same, r.cost, prevN), name: '黑暗物質晶簇', kind: `${n.zone}・Lv${n.lv}`, place: `${n.region}・${n.ae}`,
           start: r.s / ET_RATIO, end: r.e / ET_RATIO, key: doneKey(`D${n.id}`, r.s / ET_RATIO), gp: false, ic: ITEMS[DM_ID]?.ic });
       }
     }
@@ -1601,20 +1832,27 @@ footer p { max-width: 70ch; margin: .4em 0; }
   function refreshMini() {
     if (!state.mini.open && !pipWin) return;
     const now = Date.now();
-    const stops = miniStops().filter(s => s.end > now);
+    // 精簡版：已經趕不上（剩餘時間 < 傳送＋飛行＋採集）的直接跳過
+    const stops = miniStops().filter(s => s.end > now && !(s.start <= now && now + s.need > s.end));
     const idx = stops.findIndex(s => !isDone(s.key));
+    // 只有上一站真的採過、而且在同一張地圖，才顯示「同地圖騎乘」；否則一律顯示要傳送
+    const before = idx > 0 ? stops[idx - 1] : null;
+    if (idx >= 0) stops[idx] = { ...stops[idx], same: !!before && isDone(before.key) && before.map === stops[idx].map };
     miniCache = { stops, idx, cur: stops[idx], nextGp: idx >= 0 ? stops.slice(idx + 1).find(s => s.gp) : null };
     paintMini();
   }
   function miniHtml(pip) {
     const c = miniCache, now = Date.now(), cur = c?.cur;
     const live = cur && cur.start <= now;
-    const pill = !cur ? '<span class="mini-pill idle">已完成</span>' : live ? '<span class="mini-pill">採集中</span>' : '<span class="mini-pill wait">等待中</span>';
+    const rush = live && cur.end - (now + cur.need) < TIGHT_MS;
+    const pill = !cur ? '<span class="mini-pill idle">已完成</span>' : rush ? '<span class="mini-pill rush">很趕</span>' : live ? '<span class="mini-pill">採集中</span>' : '<span class="mini-pill wait">等待中</span>';
     const head = `<div class="mini-head" data-mini-drag>
         <span class="mini-brand">${ICO.pick}LEGENDARY · MINI</span>${pill}
-        <button type="button" class="mini-btn" data-mini="set" title="設定" aria-label="設定">⚙</button>
-        ${pip || MINI_APP || DESK ? '' : '<button type="button" class="mini-btn" data-mini="pip" title="釘選到桌面最上層（浮在所有視窗上）" aria-label="釘選到桌面最上層">⧉</button>'}
-        <button type="button" class="mini-btn" data-mini="close" title="關閉" aria-label="關閉">✕</button>
+        <span class="mini-ctl">
+          <button type="button" class="mini-btn" data-mini="set" title="設定" aria-label="設定">⚙</button>
+          ${pip || MINI_APP || DESK ? '' : '<button type="button" class="mini-btn" data-mini="pip" title="釘選到桌面最上層（浮在所有視窗上）" aria-label="釘選到桌面最上層">⧉</button>'}
+          <button type="button" class="mini-btn" data-mini="close" title="關閉" aria-label="關閉">✕</button>
+        </span>
       </div>
       <div class="mini-set">
         <label>來源 <select data-mini="src">${Object.entries(MINI_SRC).map(([k, l]) => `<option value="${k}"${k === state.mini.src ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
@@ -1625,12 +1863,21 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const span = Math.max(1, cur.end - cur.start);
     const fill = live ? ms / span : Math.max(0, 1 - ms / span);
     const gp = cur.gp ? `${ICO.bolt} 此站使用 GP（${state.gp.cost}）` : c.nextGp ? `${ICO.bolt} 建議預留 ${state.gp.cost} GP` : '';
-    return head + `<div class="mini-body" data-mini="done" tabindex="0" role="button" title="按一下：採完，換下一站">
-        <img class="mini-ico" src="${ICON(cur.ic)}" alt="" onerror="this.style.visibility='hidden'">
-        <div class="mini-eyebrow">下一站・${esc(cur.kind)}</div>
-        <div class="mini-name">${esc(cur.name)}</div>
-        <div class="mini-place">${ICO.pin}${esc(cur.place)}</div>
-        <div class="mini-count${live ? '' : ' wait'}"><b data-mini-count>${fmtMs(ms)}</b><small>${live ? '剩餘時間' : '距離出現'}</small></div>
+    return head + `<div class="mini-body${live ? '' : ' wait'}" data-mini="done" tabindex="0" role="button" title="按一下：採完，換下一站">
+        <div class="mini-main">
+          <img class="mini-ico" src="${ICON(cur.ic)}" alt="" onerror="this.style.visibility='hidden'">
+          <div class="mini-text">
+            <div class="mini-eyebrow">下一站・${esc(cur.kind)}</div>
+            <div class="mini-name">${esc(cur.name)}</div>
+          </div>
+          <div class="mini-count${live ? '' : ' wait'}"><b data-mini-count>${fmtMs(ms)}</b><small>${live ? '剩餘時間' : '距離出現'}</small></div>
+        </div>
+        <div class="mini-route">
+          <span class="mini-tp${cur.same ? ' same' : ''}" title="${cur.same ? '和上一站同一張地圖，騎乘前往' : '傳送到這個以太之光'}">${cur.same
+            ? `${ICO.ride}同地圖騎乘 <b>${esc(cur.ae)}</b>`
+            : `${ICO.tp}傳送 <b>${esc(cur.ae)}</b>`}</span>
+          <span class="mini-loc">${esc(cur.zone)} <span class="mini-xy">(${cur.x.toFixed(1)}, ${cur.y.toFixed(1)})</span></span>
+        </div>
         <div class="mini-bar"><i data-mini-fill style="width:${(fill * 100).toFixed(1)}%"></i></div>
         <div class="mini-foot"><span class="mini-gp">${gp}</span><span class="mini-step">第 ${c.idx + 1} / ${c.stops.length} 站</span></div>
       </div>`;
@@ -1654,7 +1901,8 @@ footer p { max-width: 70ch; margin: .4em 0; }
   function tickMini() {
     if (!miniCache || (!state.mini.open && !pipWin)) return;
     const cur = miniCache.cur, now = Date.now();
-    if (cur && now >= cur.end) { refreshMini(); return; }
+    if (cur && (now >= cur.end || (cur.start <= now && now + cur.need > cur.end))) { refreshMini(); return; }   // 消失或已趕不上 → 跳下一站
+    if (cur && cur.start <= now && cur.end - (now + cur.need) < TIGHT_MS && !document.querySelector('.mini-pill.rush') && !pipWin?.document.querySelector('.mini-pill.rush')) { paintMini(); return; }
     for (const root of [document, pipWin?.document].filter(Boolean)) {
       const box = root.querySelector('.mini-count'); if (!box || !cur) continue;
       const live = cur.start <= now;
@@ -1766,17 +2014,108 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const k = e.key.slice(4), v = store.get(k, null);
     if (k === 'done') state.done = new Set(v || []);
     else if (k === 'marks') state.marks = new Set(v || []);
-    else if (k === 'dmMarks') state.dmMarks = new Set(v || []);
+    else if (k === 'vip') state.vip = new Set((v || []).map(String));
+    else if (k === 'dmMarks') state.dmMarks = new Set((v || []).filter(x => /^\d+@\d+$/.test(x)));
+    else if (k === 'alarm') { Object.assign(state.alarm, v || {}); syncAlarm(); }
     else if (k === 'route') frozen = v;
     else if (k === 'favRoute') favFrozen = v;
     else if (k === 'dmRoute') dmFrozen = v;
     else if (k === 'gp') state.gp = Object.assign(state.gp, v || {});
     else if (k === 'travel') state.travel = Object.assign(state.travel, v || {});
+    else if (k === 'theme') { state.theme = v || 'auto'; applyTheme(); }
+    else if (k === 'tpset') state.tpset = Object.assign(state.tpset, v || {});
     else if (k === 'mini') { if (v) { state.mini.src = v.src; state.mini.alpha = v.alpha; } }
     else if (k === 'srv') { state.srv = v || state.srv; prices = {}; market = {}; loadPrices(); return; }
     else if (k === 'hist2.' + state.srv && v) { prices = v.p; market = v.m || {}; }
     else return;
     scheduleRender();
+  });
+
+  // ---------- 出現提醒：收藏的素材快出現時，用提示音／桌面通知／分頁標題倒數提醒 ----------
+  const BASE_TITLE = document.title;
+  const alarmed = new Set();   // 已提醒過的時段（開始時間，秒）
+  let alarmList = [], audioCtx = null;
+  // 每次重繪時整理一次「我的收藏」接下來各時段；每秒只比對時間
+  function refreshAlarms() {
+    if (MINI_APP) return;
+    const name = n => n.dmKey ? `黑暗物質晶簇・${n.zone}` : n.items.map(i => ITEMS[i].n).join('、');
+    alarmList = favBands(favNodes()).map(b => ({ h: b.h, start: b.start, end: b.end, names: b.order.map(name), keys: b.order.map(n => doneKey(n.dmKey || n.id, b.start)) }));
+  }
+  function beep() {
+    try {
+      audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const t0 = audioCtx.currentTime;
+      [[880, 0], [1174.7, .16], [1568, .32]].forEach(([f, d]) => {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.22, t0 + d + .02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + .45);
+        o.connect(g).connect(audioCtx.destination); o.start(t0 + d); o.stop(t0 + d + .5);
+      });
+    } catch {}
+  }
+  function fireAlarm(title, body) {
+    if (state.alarm.sound) beep();
+    if (state.alarm.notify && 'Notification' in window && Notification.permission === 'granted') {
+      try { const n = new Notification(title, { body, tag: 'lgn-alarm' }); n.onclick = () => { window.focus(); n.close(); }; } catch {}
+    }
+    toast(`${title}｜${body}`, 6000);
+  }
+  function tickAlarms(now) {
+    if (MINI_APP) return;
+    const pending = alarmList.filter(b => b.end > now && b.keys.some(k => !isDone(k)));
+    if (state.alarm.on) {
+      const lead = Math.max(5, state.alarm.lead) * 1000;
+      for (const b of pending) {
+        const id = Math.round(b.start / 1000);
+        if (b.start <= now || b.start - now > lead || alarmed.has(id)) continue;
+        alarmed.add(id);
+        fireAlarm(`ET ${pad(b.h)}:00・${fmtDur(b.start - now)} 後出現`, b.names.join('、'));
+      }
+    }
+    let title = BASE_TITLE;
+    if (state.alarm.title && pending.length) {
+      const live = pending.find(b => b.start <= now), b = live || pending[0];
+      title = `${live ? `● 剩 ${fmtDur(b.end - now)}` : `${fmtDur(b.start - now)} 後`}・${b.names[0]}${b.names.length > 1 ? ` 等 ${b.names.length} 處` : ''}｜${BASE_TITLE}`;
+    }
+    if (document.title !== title) document.title = title;
+  }
+  function syncAlarm() {
+    document.querySelectorAll('[data-alarm]').forEach(el => { const k = el.dataset.alarm; if (el.type === 'checkbox') el.checked = !!state.alarm[k]; else el.value = state.alarm[k]; });
+  }
+  $('#set-alarm').addEventListener('change', async e => {
+    const el = e.target, k = el.dataset.alarm; if (!k) return;
+    state.alarm[k] = el.type === 'checkbox' ? el.checked : Math.min(600, Math.max(5, +el.value || 60));
+    if (k === 'notify' && state.alarm.notify) {
+      if (!('Notification' in window)) { state.alarm.notify = false; toast('這個瀏覽器不支援桌面通知'); }
+      else if (Notification.permission !== 'granted') {
+        const p = await Promise.resolve(Notification.requestPermission()).catch(() => 'denied');
+        if (p !== 'granted') { state.alarm.notify = false; toast('瀏覽器沒有允許通知，請到網址列的網站設定開啟', 4000); }
+      }
+    }
+    if (state.alarm.sound && (k === 'on' || k === 'sound')) { try { audioCtx ||= new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch {} }
+    store.set('alarm', state.alarm); syncAlarm(); tickAlarms(Date.now());
+  });
+  $('#alarm-test').addEventListener('click', () => fireAlarm('測試提醒', '收藏的素材快出現時，會像這樣提醒你'));
+  syncAlarm();
+
+  // 複製文字：沒有剪貼簿權限（例如直接開啟檔案）時退回舊的作法
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch {}
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;top:0;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch { return false; }
+  }
+  const copyName = text => copyText(text).then(ok => toast(ok ? `已複製「${text}」` : '無法複製，請手動選取文字'));
+  function setMode(v) { state.mode = v; store.set('mode', v); syncControls(); render(); }
+  // 快捷鍵：1–5 切換頁面、/ 搜尋
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, select, textarea') || $('#io-dialog').open) return;
+    if (/^[1-5]$/.test(e.key)) setMode(['leg', 'dm', 'fav', 'dex', 'set'][e.key - 1]);
+    else if (e.key === '/' && state.mode === 'dex') { e.preventDefault(); $('#f-q').focus(); }
   });
 
   // ---------- 控制項 ----------
@@ -1822,7 +2161,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
   }
 
   let toastTimer;
-  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1400); }
+  function toast(msg, ms = 1400) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms); }
   // 點卡片（不含按鈕、地圖、可複製的名稱）＝ 已採過
   // 排除卡片裡的按鈕、地圖；用滑鼠點素材名稱是複製，用手指點則算已採過
   let lastPointer = 'mouse';
@@ -1856,7 +2195,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
   }, true);
   $('#f-mode').addEventListener('click', e => {
     const b = e.target.closest('.tab'); if (!b) return;
-    state.mode = b.dataset.v; store.set('mode', state.mode); syncControls(); render();
+    setMode(b.dataset.v);
   });
   // 移動時間設定（傳說素材與黑暗物質晶簇共用）
   document.querySelectorAll('.tr-in').forEach(el => {
@@ -1885,7 +2224,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
   // 手機版：底部分頁列、篩選收合
   $('#m-nav').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    state.mode = b.dataset.v; store.set('mode', state.mode); syncControls(); render(); window.scrollTo({ top: 0 });
+    setMode(b.dataset.v); window.scrollTo({ top: 0 });
   });
   $('#m-filter-btn').addEventListener('click', e => {
     const open = $('#filters').classList.toggle('open');
@@ -1907,6 +2246,22 @@ footer p { max-width: 70ch; margin: .4em 0; }
     state.dexTime = b.dataset.t; store.set('dexTime', state.dexTime); render();
   });
   $('#dex-hour').addEventListener('change', e => { state.dexTime = e.target.value || 'all'; store.set('dexTime', state.dexTime); render(); });
+  // 設定頁：深淺色、收藏點／返回點
+  applyTheme();
+  $('#set-theme').addEventListener('click', e => {
+    const b = e.target.closest('[data-theme-v]'); if (!b) return;
+    state.theme = b.dataset.themeV; store.set('theme', state.theme); applyTheme(); render();
+  });
+  $('#settings').addEventListener('change', e => {
+    const sel = e.target.closest('.tpset'); if (!sel) return;
+    state.tpset[sel.dataset.k] = sel.value; store.set('tpset', state.tpset); render();
+  });
+  $('#settings').addEventListener('click', e => {
+    if (e.target.id !== 'set-apply') return;
+    const rec = recommendTp().slice(0, 4).map(r => r[0]);
+    state.tpset = { home: rec[0] || '', fav0: rec[1] || '', fav1: rec[2] || '', fav2: rec[3] || '' };
+    store.set('tpset', state.tpset); toast('已套用推薦的返回點與收藏點'); render();
+  });
   $('#dex').addEventListener('click', e => {
     const star = e.target.closest('[data-mark]'); if (!star) return;
     const id = star.dataset.mark;
@@ -1920,7 +2275,7 @@ footer p { max-width: 70ch; margin: .4em 0; }
   const IO_PREFIX = 'FFXIVFAV1:';
   const ioMsg = (text, cls) => { const el = $('#io-msg'); el.textContent = text; el.className = 'io-msg ' + (cls || ''); };
   function exportCode() {
-    return IO_PREFIX + btoa(JSON.stringify({ v: 1, m: [...state.marks], d: [...state.dmMarks] }));
+    return IO_PREFIX + btoa(JSON.stringify({ v: 1, m: [...state.marks], d: [...state.dmMarks], i: [...state.vip] }));
   }
   function parseCode(text) {
     let s = String(text || '').trim();
@@ -1932,15 +2287,16 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const dmIds = new Set(DM_NODES.map(n => String(n.id)));
     const m = o.m.map(String).filter(id => ITEMS[id] && !ITEMS[id].sand && !ITEMS[id].dm);
     const d = (Array.isArray(o.d) ? o.d : []).map(String).filter(k => /^\d+@\d+$/.test(k) && dmIds.has(k.split('@')[0]));
-    return { m, d, skipped: o.m.length + (o.d?.length || 0) - m.length - d.length };
+    const vip = (Array.isArray(o.i) ? o.i : []).map(String).filter(k => m.includes(k) || d.includes(k));
+    return { m, d, vip, skipped: o.m.length + (o.d?.length || 0) - m.length - d.length };
   }
   function doImport(replace) {
     try {
-      const { m, d, skipped } = parseCode($('#io-text').value);
+      const { m, d, vip, skipped } = parseCode($('#io-text').value);
       const before = state.marks.size + state.dmMarks.size;
-      if (replace) { state.marks = new Set(m); state.dmMarks = new Set(d); }
-      else { m.forEach(x => state.marks.add(x)); d.forEach(x => state.dmMarks.add(x)); }
-      store.set('marks', [...state.marks]); store.set('dmMarks', [...state.dmMarks]);
+      if (replace) { state.marks = new Set(m); state.dmMarks = new Set(d); state.vip = new Set(vip); }
+      else { m.forEach(x => state.marks.add(x)); d.forEach(x => state.dmMarks.add(x)); vip.forEach(x => state.vip.add(x)); }
+      store.set('marks', [...state.marks]); store.set('dmMarks', [...state.dmMarks]); store.set('vip', [...state.vip]);
       const after = state.marks.size + state.dmMarks.size;
       ioMsg(`已匯入：物品 ${m.length} 種、晶簇時段 ${d.length} 個${replace ? '（已取代原本的收藏）' : `，新增 ${after - before} 個`}${skipped > 0 ? `；${skipped} 個無法辨識已略過` : ''}`, 'ok');
       toast('收藏已匯入');
@@ -1964,10 +2320,10 @@ footer p { max-width: 70ch; margin: .4em 0; }
   $('#io-copy').addEventListener('click', () => {
     const el = $('#io-text');
     if (!el.value) el.value = exportCode();
-    navigator.clipboard?.writeText(el.value).then(() => ioMsg('代碼已複製', 'ok'), () => { el.select(); ioMsg('請按 Ctrl+C 複製已選取的代碼'); });
+    copyText(el.value).then(ok => { if (ok) ioMsg('代碼已複製', 'ok'); else { el.select(); ioMsg('請按 Ctrl+C 複製已選取的代碼'); } });
   });
   $('#io-download').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ v: 1, m: [...state.marks], d: [...state.dmMarks] }, null, 1)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ v: 1, m: [...state.marks], d: [...state.dmMarks], i: [...state.vip] }, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `ffxiv-favorites-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1990,10 +2346,18 @@ footer p { max-width: 70ch; margin: .4em 0; }
     const id = e.target.id;
     if (id === 'fav-start' || id === 'fav-replan') { favFrozen = null; freezeFav(favBands(favNodes())); toast('已固定路線，照名單往下走'); render(); return; }
     if (id === 'fav-stop') { favFrozen = null; store.set('favRoute', null); toast('已結束路線'); render(); return; }
+    const vip = e.target.closest('[data-vip]');
+    if (vip) {
+      const k = vip.dataset.vip;
+      if (state.vip.has(k)) state.vip.delete(k); else state.vip.add(k);
+      store.set('vip', [...state.vip]);
+      toast(state.vip.has(k) ? '已設為重要項目' : '已取消重要項目');
+      render(); return;
+    }
     const star = e.target.closest('[data-mark]');
     if (star) { state.marks.delete(star.dataset.mark); store.set('marks', [...state.marks]); toast(`已取消收藏「${ITEMS[star.dataset.mark].n}」`); render(); return; }
     const el = e.target.closest('[data-copy]');
-    if (el) navigator.clipboard?.writeText(el.dataset.copy).then(() => toast(`已複製「${el.dataset.copy}」`), () => {});
+    if (el) copyName(el.dataset.copy);
   });
   $('#list').addEventListener('click', e => {
     const star = e.target.closest('[data-mark]');
@@ -2005,16 +2369,17 @@ footer p { max-width: 70ch; margin: .4em 0; }
       render(); return;
     }
     const el = e.target.closest('[data-copy]'); if (!el) return;
-    const text = el.dataset.copy;
-    navigator.clipboard?.writeText(text).then(() => toast(`已複製「${text}」`), () => {
-      const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('請按 Ctrl+C 複製');
-    });
+    copyName(el.dataset.copy);
   });
 
   syncControls();
   render();
   tick();
-  setInterval(tick, 1000);
+  try {
+    const w = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 1000)'], { type: 'text/javascript' })));
+    w.onmessage = () => tick();
+    w.onerror = () => { w.terminate(); setInterval(tick, 1000); };
+  } catch { setInterval(tick, 1000); }
   loadPrices();
 })();
 </script>
