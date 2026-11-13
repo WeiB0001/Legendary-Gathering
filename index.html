@@ -387,6 +387,20 @@ button:disabled { opacity: .5; cursor: default; }
 .vip:hover { border-color: var(--gold); color: var(--gold); }
 .vip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--bg); font-weight: 700; }
 .dex-filter input[type="search"] { width: 15em; }
+.rank-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.rank-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: .85rem; }
+.rank-table th, .rank-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.rank-table thead th { font-size: .75rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.rank-table tbody tr:last-child td { border-bottom: 0; }
+.rank-table .num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rank-table .num small, .rank-table td small { font-family: var(--font-body); font-size: .72rem; color: var(--muted); }
+.rank-table .rk { font: 500 1rem var(--font-mono); color: var(--gold); white-space: nowrap; }
+.rank-table .et { font-family: var(--font-mono); font-size: .8rem; }
+.rank-table tr.now td { background: var(--live-soft); }
+.rk-item { display: flex; align-items: center; gap: 8px; }
+.rk-item img { width: 30px; height: 30px; border-radius: 6px; flex: none; background: var(--line); }
+.rk-item.marked b { color: var(--gold); }
+.rk-item .dx-col, .rk-item .dx-norm { flex: none; white-space: nowrap; }
 .set-check { display: flex; gap: 8px; align-items: center; font-size: .85rem; cursor: pointer; }
 .set-check input { width: 16px; height: 16px; accent-color: var(--gold); margin: 0; }
 .set-test { justify-self: start; border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: .82rem; }
@@ -583,6 +597,13 @@ kbd { font: 500 .7rem var(--font-mono); padding: 1px 6px; border: 1px solid var(
         <label class="field" for="dex-hour">指定 <select id="dex-hour"></select></label>
       </div>
       <div class="group">
+        <label class="cap" for="dex-sort">排序</label>
+        <select id="dex-sort">
+          <option value="time">依 ET 時段</option>
+          <option value="rank">依賣出划算度排名</option>
+        </select>
+      </div>
+      <div class="group">
         <label class="cap" for="f-q">搜尋</label>
         <input type="search" id="f-q" placeholder="素材／地區／傳送點">
       </div>
@@ -697,6 +718,7 @@ kbd { font: 500 .7rem var(--font-mono); padding: 1px 6px; border: 1px solid var(
     // 實際移動時間：每點採集秒數、每次傳送的讀取＋騎乘緩衝（同地圖算一半）、兩個 GP 點的最短間隔（強心劑 CD）
     // fly：每 1 格地圖座標要飛幾 ET 分鐘（依實測：瑪穆克→八面體隕鐵礦石 18.8 格 ≈ ET 22.5 分 → 1.2）
     travel: Object.assign({ gather: 45, load: 12, fly: 1.2, gap: 180 }, store.get('travel', {})),
+    dexSort: store.get('dexSort', 'time') === 'rank' ? 'rank' : 'time',   // 圖鑑排序：time = ET 時段 × 版本；rank = 依賣出划算度排名
     dexTime: store.get('dexTime', 'all'),   // all | now | next6 | h0..h23
     dmMarks: new Set(store.get('dmMarks', []).filter(k => /^\d+@\d+$/.test(k))),
     vip: new Set(store.get('vip', []).map(String).filter(k => /^\d+(@\d+)?$/.test(k))),   // 收藏裡的重要項目：物品 id 或晶簇「採集點@ET 時段」
@@ -1344,12 +1366,16 @@ kbd { font: 500 .7rem var(--font-mono); padding: 1px 6px; border: 1px solid var(
       : state.dexTime === 'next6' ? active(h, n) || (h - curH + 24) % 24 < 6
       : h === +state.dexTime.slice(1);
     const cell = Array.from({ length: 24 }, () => ({}));
-    const seen = new Set(), shown = new Set();
+    const seen = new Set(), shown = new Set(), byItem = new Map();
     for (const n of list) for (const h of n.spawns) {
       if (!timeOk(h, n)) continue;
       for (const i of n.items) {
         const k = `${h}|${n.exp}|${i}`; if (seen.has(k)) continue; seen.add(k);
         (cell[h][n.exp] ||= []).push({ i, n }); shown.add(i);
+      }
+      for (const i of n.items) {
+        const r = byItem.get(i) || byItem.set(i, { i, n, hours: new Set(), on: false }).get(i);
+        r.hours.add(h); if (active(h, n)) r.on = true;
       }
     }
     $('#st-count').textContent = `${shown.size} 種素材`;
@@ -1370,6 +1396,33 @@ kbd { font: 500 .7rem var(--font-mono); padding: 1px 6px; border: 1px solid var(
         <button class="star" type="button" data-mark="${i}" aria-pressed="${mk}" title="${mk ? '取消收藏' : '收藏'}">★</button>
       </div>`;
     };
+    $('#dex-sort').value = state.dexSort;
+    document.querySelectorAll('#dex-exp .chip').forEach(b => b.setAttribute('aria-pressed', state.exps.has(b.dataset.v)));
+    document.querySelectorAll('#dex-time .chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.t === state.dexTime));
+    $('#dex-hour').value = state.dexTime.startsWith('h') ? state.dexTime : '';
+    // 依賣出划算度排名：所有符合篩選的素材排成一張表，有排名的在前，其餘依均價
+    if (state.dexSort === 'rank') {
+      const expName = Object.fromEntries(EXPS);
+      const list = [...byItem.values()].sort((a, b) => (market[a.i]?.rank || 1e9) - (market[b.i]?.rank || 1e9) || (prices[b.i]?.avg || 0) - (prices[a.i]?.avg || 0) || a.i - b.i);
+      const rowsHtml = list.map(({ i, n, hours, on }) => {
+        const it = ITEMS[i], mk = isMarked(i), m = market[i], p = prices[i];
+        const hs = [...hours].sort((a, b) => ((a - curH + 24) % 24) - ((b - curH + 24) % 24)).map(h => pad(h) + ':00').join('、');
+        const price = it.sc ? `${it.sc.n} <small>${esc(it.sc.cur)}</small>` : !it.tw ? '<small>台服未實裝</small>' : p ? `${gil(p.avg)} <small>gil</small>` : '<small>—</small>';
+        return `<tr class="${on ? 'now' : ''}">
+          <td class="rk">${m?.rank ? '#' + m.rank : '—'}</td>
+          <td><div class="rk-item${mk ? ' marked' : ''}"><button class="star" type="button" data-mark="${i}" aria-pressed="${mk}" title="${mk ? '取消收藏' : '收藏'}">★</button><img src="${ICON(it.ic)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><b>${esc(it.n)}</b>${it.sc ? '<span class="dx-col">收藏品</span>' : ''}${it.norm ? '<span class="dx-norm" title="一般採集點也採得到">一般點也有</span>' : ''}</div></td>
+          <td class="num">${price}</td>
+          <td class="num">${m?.vel ? m.vel.toFixed(1) : '—'}</td>
+          <td class="et">${hs}${on ? ' <span class="tag sel">出現中</span>' : ''}</td>
+          <td><span class="tag ${n.job}">${n.job === 'MIN' ? '採礦' : '園藝'} Lv${n.lv}</span> ${esc(n.region)}・${esc(n.ae || n.zone)}<br><small>${expName[n.exp] || ''}・${KIND_NAME[n.kind] || ''}</small></td>
+        </tr>`;
+      }).join('');
+      $('#dex-grid').innerHTML = rowsHtml ? `<div class="rank-wrap"><table class="rank-table">
+        <thead><tr><th>排名</th><th>素材</th><th class="num">均價</th><th class="num">日銷</th><th>出現 ET</th><th>地點</th></tr></thead>
+        <tbody>${rowsHtml}</tbody></table></div>`
+        : '<p class="empty">沒有符合條件的素材。試著放寬版本、時間段、職業或類型。</p>';
+      return;
+    }
     const order = Array.from({ length: 24 }, (_, k) => (curH + k) % 24);
     const rows = order.map(h => {
       if (!exps.some(([k]) => cell[h][k]?.length)) return '';
@@ -1383,10 +1436,6 @@ kbd { font: 500 .7rem var(--font-mono); padding: 1px 6px; border: 1px solid var(
       <thead><tr><th>ET 整點</th>${exps.map(([, label]) => `<th>${label}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody></table></div>`
       : '<p class="empty">沒有符合條件的素材。試著放寬版本、時間段、職業或類型。</p>';
-    // 同步篩選按鈕狀態
-    document.querySelectorAll('#dex-exp .chip').forEach(b => b.setAttribute('aria-pressed', state.exps.has(b.dataset.v)));
-    document.querySelectorAll('#dex-time .chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.t === state.dexTime));
-    $('#dex-hour').value = state.dexTime.startsWith('h') ? state.dexTime : '';
   }
 
   // ---------- 設定頁 ----------
@@ -2245,6 +2294,7 @@ kbd { font: 500 .7rem var(--font-mono); padding: 1px 6px; border: 1px solid var(
     const b = e.target.closest('.chip'); if (!b) return;
     state.dexTime = b.dataset.t; store.set('dexTime', state.dexTime); render();
   });
+  $('#dex-sort').addEventListener('change', e => { state.dexSort = e.target.value; store.set('dexSort', state.dexSort); render(); });
   $('#dex-hour').addEventListener('change', e => { state.dexTime = e.target.value || 'all'; store.set('dexTime', state.dexTime); render(); });
   // 設定頁：深淺色、收藏點／返回點
   applyTheme();
